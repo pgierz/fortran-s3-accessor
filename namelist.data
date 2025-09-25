@@ -1,0 +1,6 @@
+&storage
+    lenable_s3=.TRUE.
+    cache_dir="/tmp/s3-fortran/cache/"
+/
+
+# vim: filetype=fortran

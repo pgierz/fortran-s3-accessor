@@ -67,21 +67,17 @@ target_include_directories(fortran_s3_accessor PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
-# Example executables
+# Example executable
 add_executable(s3_example app/main.f90)
 target_link_libraries(s3_example fortran_s3_accessor)
-
-# Additional examples
-add_executable(example_backend_selection examples/example_backend_selection.f90)
-target_link_libraries(example_backend_selection fortran_s3_accessor)
 
 # Enable testing
 enable_testing()
 
-# Add test executable
-add_executable(test_s3_accessor test/check.f90)
-target_link_libraries(test_s3_accessor fortran_s3_accessor)
-add_test(NAME s3_accessor_tests COMMAND test_s3_accessor)
+# Test executable can be added when test/check.f90 is created
+# add_executable(test_s3_accessor test/check.f90)
+# target_link_libraries(test_s3_accessor fortran_s3_accessor)
+# add_test(NAME s3_accessor_tests COMMAND test_s3_accessor)
 
 # Installation rules
 install(TARGETS fortran_s3_accessor

@@ -32,9 +32,11 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build NetCDF example
-      run: fpm build s3_netcdf_example --verbose
+      working-directory: examples/netcdf
+      run: fpm build --verbose
 
     - name: Run NetCDF S3 example
+      working-directory: examples/netcdf
       run: |
         echo "Running NetCDF S3 example with GOES-16 data..."
         fpm run s3_netcdf_example

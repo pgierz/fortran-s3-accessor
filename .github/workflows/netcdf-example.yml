@@ -21,6 +21,11 @@ jobs:
           compiler: gcc
           version: 13
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Install NetCDF
         run: |
           sudo apt-get update
@@ -31,6 +36,17 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install Python dependencies
+        working-directory: examples/netcdf/python
+        run: pip install -r requirements.txt
+
+      - name: Run Python S3 NetCDF example
+        working-directory: examples/netcdf/python
+        run: |
+          echo "Running Python S3 NetCDF example with ESGF climate data..."
+          python read_s3_netcdf.py
+        continue-on-error: true
+
       - name: Build NetCDF example
         working-directory: examples/netcdf
         run: fpm build --verbose --flag -fallow-argument-mismatch
@@ -38,7 +54,7 @@ jobs:
       - name: Run NetCDF S3 example
         working-directory: examples/netcdf
         run: |
-          echo "Running NetCDF S3 example with GOES-16 data..."
+          echo "Running Fortran NetCDF S3 example with ESGF climate data..."
           fpm run s3_netcdf_example --flag -fallow-argument-mismatch
         continue-on-error: true
 

@@ -7,16 +7,16 @@ program s3_netcdf_example
     character(len=:), allocatable :: content
     logical :: success
     integer :: ncid, varid, status
-    character(len=*), parameter :: temp_file = "/tmp/goes16_data.nc"
-    character(len=*), parameter :: goes16_uri = &
-        "s3://noaa-goes16/ABI-L2-CMIPF/2024/001/00/OR_ABI-L2-CMIPF-M6C01_G16_s20240010001173_e20240010003546_c20240010004028.nc"
+    character(len=*), parameter :: temp_file = "/tmp/esgf_climate_data.nc"
+    character(len=*), parameter :: climate_uri = &
+        "s3://esgf-world/CMIP6/CMIP/AWI/AWI-ESM-1-1-LR/piControl/r1i1p1f1/fx/areacella/gn/v20200212/areacella_fx_AWI-ESM-1-1-LR_piControl_r1i1p1f1_gn.nc"
 
     ! File metadata variables
     character(len=100) :: title, source_name
     integer :: file_size
 
     print *, '================================================'
-    print *, 'NOAA GOES-16 NetCDF via S3 Example'
+    print *, 'ESGF Climate Model NetCDF via S3 Example'
     print *, '================================================'
     print *, ''
 
@@ -28,17 +28,17 @@ program s3_netcdf_example
     config%secret_key = ''
     call s3_init(config)
 
-    print *, 'Downloading GOES-16 NetCDF file from S3...'
-    print *, 'URI: ', goes16_uri
+    print *, 'Downloading ESGF climate model NetCDF file from S3...'
+    print *, 'URI: ', climate_uri
     print *, ''
 
     ! Download the NetCDF file from S3
-    success = s3_get_uri(goes16_uri, content)
+    success = s3_get_uri(climate_uri, content)
     if (.not. success) then
         print *, 'ERROR: Failed to download file from S3'
         print *, 'This might be due to:'
         print *, '  - Network connectivity issues'
-        print *, '  - File not found (GOES-16 files are updated daily)'
+        print *, '  - File not found (ESGF dataset may be temporarily unavailable)'
         print *, '  - S3 access restrictions'
         stop 1
     end if

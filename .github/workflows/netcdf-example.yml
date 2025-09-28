@@ -2,9 +2,9 @@ name: NetCDF Example
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [master, main]
   pull_request:
-    branches: [ master, main ]
+    branches: [master, main]
 
 jobs:
   test-netcdf-example:
@@ -12,41 +12,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v5
+      - name: Checkout code
+        uses: actions/checkout@v5
 
-    - name: Setup Fortran
-      uses: fortran-lang/setup-fortran@v1
-      with:
-        compiler: gcc
-        version: 13
+      - name: Setup Fortran
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: gcc
+          version: 13
 
-    - name: Install NetCDF
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libnetcdf-dev libnetcdff-dev
+      - name: Install NetCDF
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnetcdf-dev libnetcdff-dev
 
-    - name: Setup FPM
-      uses: fortran-lang/setup-fpm@v7
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup FPM
+        uses: fortran-lang/setup-fpm@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build NetCDF example
-      working-directory: examples/netcdf
-      run: fpm build --verbose
+      - name: Build NetCDF example
+        working-directory: examples/netcdf
+        run: fpm build --verbose --flag -fallow-argument-mismatch
 
-    - name: Run NetCDF S3 example
-      working-directory: examples/netcdf
-      run: |
-        echo "Running NetCDF S3 example with GOES-16 data..."
-        fpm run s3_netcdf_example
-      continue-on-error: true
+      - name: Run NetCDF S3 example
+        working-directory: examples/netcdf
+        run: |
+          echo "Running NetCDF S3 example with GOES-16 data..."
+          fpm run s3_netcdf_example
+        continue-on-error: true
 
-    - name: Check example results
-      run: |
-        if [ $? -eq 0 ]; then
-          echo "✅ NetCDF S3 example ran successfully"
-        else
-          echo "⚠️ NetCDF S3 example failed (possibly due to network/S3 issues)"
-          echo "This is acceptable for CI as it tests real S3 connectivity"
-        fi
+      - name: Check example results
+        run: |
+          if [ $? -eq 0 ]; then
+            echo "✅ NetCDF S3 example ran successfully"
+          else
+            echo "⚠️ NetCDF S3 example failed (possibly due to network/S3 issues)"
+            echo "This is acceptable for CI as it tests real S3 connectivity"
+          fi

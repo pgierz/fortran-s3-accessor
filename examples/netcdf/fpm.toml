@@ -4,10 +4,10 @@ license = "license"
 author = "Paul Gierz"
 maintainer = "pgierz@awi.de"
 copyright = "Copyright 2025, Paul Gierz"
-
 [dependencies]
 fortran-s3-accessor = { path = "../.." }
-netcdf = "*"
+netcdf-interfaces = { git = "https://github.com/LKedward/netcdf-interfaces.git" }
+
 
 [[executable]]
 name = "s3_netcdf_example"

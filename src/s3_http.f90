@@ -107,7 +107,7 @@ contains
         write(cmd, '(A,A)') 'rm -f ', trim(tmpfile)
         call execute_command_line(cmd)
 
-        success = (ios == 0 .and. index(content, '<Code>NoSuchKey</Code>') == 0)
+        success = (ios == 0 .and. index(content, '<Error>') == 0)
     end function s3_get_object
 
     ! Put an object to S3

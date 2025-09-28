@@ -112,9 +112,8 @@ jobs:
         run: ford docs/ford.md
 
       - name: Upload documentation artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: documentation-${{ github.run_id }}
           path: docs/generated/
 
       - name: Setup Pages
@@ -124,8 +123,6 @@ jobs:
       - name: Deploy to GitHub Pages
         if: github.event_name == 'push'
         uses: actions/deploy-pages@v4
-        with:
-          artifact_name: documentation-${{ github.run_id }}
 
   lint:
     name: Code Quality

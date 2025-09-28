@@ -1,0 +1,79 @@
+#!/bin/bash
+# Mock curl script for testing S3 operations
+
+# Only mock if F90S3_TEST_MODE is set
+if [ "$F90S3_TEST_MODE" != "true" ] && [ "$F90S3_TEST_MODE" != "1" ]; then
+    exec /usr/bin/curl "$@"
+fi
+
+# Directory containing mock responses
+RESPONSE_DIR="$(dirname "$0")/../data/responses"
+
+# Parse curl arguments to determine what's being requested
+OUTPUT_FILE=""
+URL=""
+IS_HEAD_REQUEST=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -o)
+            OUTPUT_FILE="$2"
+            shift 2
+            ;;
+        -I)
+            IS_HEAD_REQUEST=true
+            shift
+            ;;
+        -s|-X|-S)
+            shift
+            ;;
+        http*|https*)
+            URL="$1"
+            shift
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+
+# Extract the object key from the URL
+# URL format: https://bucket.s3.amazonaws.com/key
+if [[ "$URL" =~ /([^/]+)$ ]]; then
+    KEY="${BASH_REMATCH[1]}"
+else
+    KEY=""
+fi
+
+# Determine response file based on key
+if [ "$IS_HEAD_REQUEST" = true ]; then
+    # HEAD request - checking if object exists
+    if [ -f "$RESPONSE_DIR/head_${KEY}" ]; then
+        cat "$RESPONSE_DIR/head_${KEY}"
+        exit 0
+    else
+        exit 22  # curl error code for 404
+    fi
+fi
+
+# GET request - return object content
+if [ -n "$OUTPUT_FILE" ]; then
+    if [ -f "$RESPONSE_DIR/${KEY}" ]; then
+        # File exists - return its content
+        cp "$RESPONSE_DIR/${KEY}" "$OUTPUT_FILE"
+        exit 0
+    else
+        # File doesn't exist - return NoSuchKey error
+        if [ -f "$RESPONSE_DIR/nosuchkey.xml" ]; then
+            cp "$RESPONSE_DIR/nosuchkey.xml" "$OUTPUT_FILE"
+        else
+            # Fallback if nosuchkey.xml doesn't exist
+            echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > "$OUTPUT_FILE"
+            echo "<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>$KEY</Key></Error>" >> "$OUTPUT_FILE"
+        fi
+        exit 0
+    fi
+fi
+
+# Default: pass through to real curl
+exec /usr/bin/curl "$@"

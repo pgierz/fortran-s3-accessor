@@ -1,0 +1,127 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Fortran
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: gcc
+          version: 12
+
+      - name: Setup FPM
+        uses: fortran-lang/setup-fpm@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate version module
+        run: |
+          chmod +x scripts/generate_version.sh
+          ./scripts/generate_version.sh src
+
+      - name: Build release with FPM
+        run: fpm build --profile release
+
+      - name: Run tests
+        run: fpm test
+
+      - name: Build with CMake
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install FORD
+        run: |
+          python -m pip install --upgrade pip
+          pip install ford
+
+      - name: Build documentation
+        run: ford ford.md
+
+      - name: Create release archive
+        run: |
+          mkdir -p release/fortran-s3-accessor-${GITHUB_REF_NAME}
+
+          # Copy source files
+          cp -r src/ release/fortran-s3-accessor-${GITHUB_REF_NAME}/
+          cp -r app/ release/fortran-s3-accessor-${GITHUB_REF_NAME}/
+          cp -r test/ release/fortran-s3-accessor-${GITHUB_REF_NAME}/
+          cp -r examples/ release/fortran-s3-accessor-${GITHUB_REF_NAME}/
+          cp -r scripts/ release/fortran-s3-accessor-${GITHUB_REF_NAME}/
+
+          # Copy build files
+          cp fpm.toml release/fortran-s3-accessor-${GITHUB_REF_NAME}/
+          cp CMakeLists.txt release/fortran-s3-accessor-${GITHUB_REF_NAME}/
+          cp ford.md release/fortran-s3-accessor-${GITHUB_REF_NAME}/
+
+          # Copy documentation
+          cp README.md release/fortran-s3-accessor-${GITHUB_REF_NAME}/
+          cp DESIGN.md release/fortran-s3-accessor-${GITHUB_REF_NAME}/
+
+          # Copy documentation
+          cp -r docs/ release/fortran-s3-accessor-${GITHUB_REF_NAME}/docs/
+
+          # Create tarball
+          cd release
+          tar -czf fortran-s3-accessor-${GITHUB_REF_NAME}.tar.gz fortran-s3-accessor-${GITHUB_REF_NAME}/
+          zip -r fortran-s3-accessor-${GITHUB_REF_NAME}.zip fortran-s3-accessor-${GITHUB_REF_NAME}/
+
+      - name: Extract release notes
+        run: |
+          # Extract version from tag
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+          # Create release notes
+          cat > release_notes.md << 'EOF'
+          ## Fortran S3 Accessor ${{ env.VERSION }}
+
+          ### Features
+          - S3-compatible storage access with Fortran I/O interface
+          - Runtime configuration via namelists
+          - Extensible backend system
+          - Comprehensive testing suite
+          - Complete API documentation
+
+          ### Build Systems
+          - Fortran Package Manager (FPM)
+          - CMake
+
+          ### Compatibility
+          - Fortran 2008 standard
+          - Linux and macOS
+          - GCC 11, 12, 13
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body_path: release_notes.md
+          files: |
+            release/fortran-s3-accessor-${{ github.ref_name }}.tar.gz
+            release/fortran-s3-accessor-${{ github.ref_name }}.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

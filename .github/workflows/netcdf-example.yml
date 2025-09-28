@@ -39,7 +39,7 @@ jobs:
         working-directory: examples/netcdf
         run: |
           echo "Running NetCDF S3 example with GOES-16 data..."
-          fpm run s3_netcdf_example
+          fpm run s3_netcdf_example --flag -fallow-argument-mismatch
         continue-on-error: true
 
       - name: Check example results

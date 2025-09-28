@@ -6,14 +6,12 @@ program s3_netcdf_example
     type(s3_config) :: config
     character(len=:), allocatable :: content
     logical :: success
-    integer :: ncid, varid, status
+    integer :: ncid, status
     character(len=*), parameter :: temp_file = "/tmp/esgf_climate_data.nc"
     character(len=*), parameter :: climate_uri = &
-        "s3://esgf-world/CMIP6/CMIP/AWI/AWI-ESM-1-1-LR/piControl/r1i1p1f1/fx/areacella/gn/v20200212/areacella_fx_AWI-ESM-1-1-LR_piControl_r1i1p1f1_gn.nc"
+        "s3://esgf-world/CMIP6/CMIP/AWI/AWI-ESM-1-1-LR/piControl/r1i1p1f1/fx/areacella/gn/" // &
+        "v20200212/areacella_fx_AWI-ESM-1-1-LR_piControl_r1i1p1f1_gn.nc"
 
-    ! File metadata variables
-    character(len=100) :: title, source_name
-    integer :: file_size
 
     print *, 'S3 NetCDF Reading Example'
     print *, '========================================'

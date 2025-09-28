@@ -25,18 +25,6 @@ module s3_http
 
 contains
 
-    ! Check if we're in test mode
-    function is_test_mode() result(test_mode)
-        logical :: test_mode
-        character(len=32) :: test_value
-        integer :: status
-
-        test_mode = .false.
-        call get_environment_variable("F90S3_TEST_MODE", test_value, status=status)
-        if (status == 0) then
-            test_mode = (trim(test_value) == "true" .or. trim(test_value) == "1")
-        end if
-    end function is_test_mode
 
     subroutine s3_init(config)
         type(s3_config), intent(in) :: config

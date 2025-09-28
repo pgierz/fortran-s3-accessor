@@ -68,7 +68,6 @@ The library follows a modular, layered architecture:
 
 4. **Configuration** (`s3_config_mod.f90`)
    - `s3_config_t` type for backend configuration
-   - Supports namelist-based configuration
    - Controls backend selection and S3 parameters
 
 5. **Main Module** (`fortran-s3-accessor.f90`)

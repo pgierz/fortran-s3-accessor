@@ -28,11 +28,6 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate version module
-        run: |
-          chmod +x scripts/generate_version.sh
-          ./scripts/generate_version.sh src
-
       - name: Build release with FPM
         run: fpm build --profile release
 
@@ -55,7 +50,7 @@ jobs:
           pip install ford
 
       - name: Build documentation
-        run: ford ford.md
+        run: ford docs/ford.md
 
       - name: Create release archive
         run: |
@@ -65,17 +60,14 @@ jobs:
           cp -r src/ release/fortran-s3-accessor-${GITHUB_REF_NAME}/
           cp -r app/ release/fortran-s3-accessor-${GITHUB_REF_NAME}/
           cp -r test/ release/fortran-s3-accessor-${GITHUB_REF_NAME}/
-          cp -r examples/ release/fortran-s3-accessor-${GITHUB_REF_NAME}/
-          cp -r scripts/ release/fortran-s3-accessor-${GITHUB_REF_NAME}/
 
           # Copy build files
           cp fpm.toml release/fortran-s3-accessor-${GITHUB_REF_NAME}/
           cp CMakeLists.txt release/fortran-s3-accessor-${GITHUB_REF_NAME}/
-          cp ford.md release/fortran-s3-accessor-${GITHUB_REF_NAME}/
+          cp docs/ford.md release/fortran-s3-accessor-${GITHUB_REF_NAME}/
 
           # Copy documentation
           cp README.md release/fortran-s3-accessor-${GITHUB_REF_NAME}/
-          cp DESIGN.md release/fortran-s3-accessor-${GITHUB_REF_NAME}/
 
           # Copy documentation
           cp -r docs/ release/fortran-s3-accessor-${GITHUB_REF_NAME}/docs/
@@ -97,8 +89,8 @@ jobs:
 
           ### Features
           - S3-compatible storage access with Fortran I/O interface
-          - Runtime configuration via namelists
-          - Extensible backend system
+          - Direct curl-based S3 operations
+          - Simple configuration via derived types
           - Comprehensive testing suite
           - Complete API documentation
 

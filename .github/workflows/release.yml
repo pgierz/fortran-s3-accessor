@@ -24,7 +24,7 @@ jobs:
           version: 12
 
       - name: Setup FPM
-        uses: fortran-lang/setup-fpm@v5
+        uses: fortran-lang/setup-fpm@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 

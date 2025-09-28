@@ -11,6 +11,7 @@ A simple Fortran library for S3-compatible object storage access using direct HT
 
 ## Quick Start
 
+### Basic Usage with s3:// URIs
 ```fortran
 program s3_example
     use s3_http
@@ -20,14 +21,51 @@ program s3_example
     character(len=:), allocatable :: content
     logical :: success
 
-    ! Configure S3 access
-    config%bucket = 'my-bucket'
-    config%region = 'us-east-1'
+    ! Configure default S3 settings (for auth and region)
     config%endpoint = 's3.amazonaws.com'
+    config%region = 'us-east-1'
+    config%use_https = .true.
+    config%access_key = 'YOUR_ACCESS_KEY'
+    config%secret_key = 'YOUR_SECRET_KEY'
+    call s3_init(config)
+
+    ! Download using s3:// URI (bucket specified in URI)
+    success = s3_get_uri('s3://my-bucket/data/input.txt', content)
+    if (success) then
+        print *, 'Downloaded:', len(content), 'bytes'
+    end if
+
+    ! Upload content
+    success = s3_put_uri('s3://my-bucket/data/output.txt', 'Hello S3!')
+    if (success) then
+        print *, 'Upload successful'
+    end if
+
+    ! Check if object exists
+    if (s3_exists_uri('s3://my-bucket/data/input.txt')) then
+        print *, 'File exists'
+    end if
+end program
+```
+
+### Traditional Key-Based Usage
+```fortran
+program s3_traditional
+    use s3_http
+    implicit none
+
+    type(s3_config) :: config
+    character(len=:), allocatable :: content
+    logical :: success
+
+    ! Configure S3 access (bucket specified in config)
+    config%bucket = 'my-bucket'
+    config%endpoint = 's3.amazonaws.com'
+    config%region = 'us-east-1'
     config%use_https = .true.
     call s3_init(config)
 
-    ! Download an object
+    ! Download using object key only
     success = s3_get_object('data/input.txt', content)
     if (success) then
         print *, 'Downloaded:', len(content), 'bytes'

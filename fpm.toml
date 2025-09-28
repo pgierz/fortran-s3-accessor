@@ -16,6 +16,13 @@ implicit-typing = false
 implicit-external = false
 source-form = "free"
 
+[[executable]]
+name = "s3_netcdf_example"
+source-dir = "app"
+main = "s3_netcdf_example.f90"
+[executable.dependencies]
+netcdf-fortran = "*"
+
 [dev-dependencies]
 test-drive = { git = "https://github.com/fortran-lang/test-drive", tag = "v0.4.0" }
 

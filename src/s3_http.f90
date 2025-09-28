@@ -22,9 +22,53 @@ module s3_http
     public :: s3_put_object
     public :: s3_object_exists
     public :: s3_delete_object
+    ! s3:// URI functions
+    public :: s3_get_uri
+    public :: s3_put_uri
+    public :: s3_exists_uri
+    public :: s3_delete_uri
 
 contains
 
+    ! Parse s3:// URI into bucket and key
+    ! Format: s3://bucket-name/path/to/object
+    subroutine parse_s3_uri(uri, bucket, key, success)
+        character(len=*), intent(in) :: uri
+        character(len=:), allocatable, intent(out) :: bucket
+        character(len=:), allocatable, intent(out) :: key
+        logical, intent(out) :: success
+        integer :: bucket_start, bucket_end, key_start
+
+        success = .false.
+
+        ! Check for s3:// prefix
+        if (len(uri) < 6) return
+        if (uri(1:5) /= 's3://') return
+
+        ! Find bucket name (between s3:// and next /)
+        bucket_start = 6
+        bucket_end = index(uri(bucket_start:), '/') + bucket_start - 2
+
+        if (bucket_end < bucket_start) then
+            ! No key, just bucket
+            bucket = uri(bucket_start:)
+            key = ''
+            success = .true.
+            return
+        end if
+
+        ! Extract bucket and key
+        bucket = uri(bucket_start:bucket_end)
+        key_start = bucket_end + 2
+
+        if (key_start <= len(uri)) then
+            key = uri(key_start:)
+        else
+            key = ''
+        end if
+
+        success = .true.
+    end subroutine parse_s3_uri
 
     subroutine s3_init(config)
         type(s3_config), intent(in) :: config
@@ -230,5 +274,131 @@ contains
         call random_number(rand_val)
         pid = abs(int(rand_val * 100000))
     end function getpid
+
+    ! Get an object using s3:// URI
+    function s3_get_uri(uri, content) result(success)
+        character(len=*), intent(in) :: uri
+        character(len=:), allocatable, intent(out) :: content
+        logical :: success
+        character(len=:), allocatable :: bucket, key
+        type(s3_config) :: temp_config
+        logical :: uri_parsed
+
+        success = .false.
+
+        ! Try to parse as s3:// URI
+        call parse_s3_uri(uri, bucket, key, uri_parsed)
+        if (.not. uri_parsed) then
+            ! Not a s3:// URI, treat as regular key with current config
+            success = s3_get_object(uri, content)
+            return
+        end if
+
+        ! Use parsed bucket if different from current config
+        if (allocated(bucket) .and. len_trim(bucket) > 0) then
+            temp_config = current_config
+            temp_config%bucket = bucket
+            call s3_init(temp_config)
+            success = s3_get_object(key, content)
+            ! Restore original config
+            call s3_init(current_config)
+        else
+            success = s3_get_object(key, content)
+        end if
+    end function s3_get_uri
+
+    ! Check if object exists using s3:// URI
+    function s3_exists_uri(uri) result(exists)
+        character(len=*), intent(in) :: uri
+        logical :: exists
+        character(len=:), allocatable :: bucket, key
+        type(s3_config) :: temp_config
+        logical :: uri_parsed
+
+        exists = .false.
+
+        ! Try to parse as s3:// URI
+        call parse_s3_uri(uri, bucket, key, uri_parsed)
+        if (.not. uri_parsed) then
+            ! Not a s3:// URI, treat as regular key
+            exists = s3_object_exists(uri)
+            return
+        end if
+
+        ! Use parsed bucket if different from current config
+        if (allocated(bucket) .and. len_trim(bucket) > 0) then
+            temp_config = current_config
+            temp_config%bucket = bucket
+            call s3_init(temp_config)
+            exists = s3_object_exists(key)
+            ! Restore original config
+            call s3_init(current_config)
+        else
+            exists = s3_object_exists(key)
+        end if
+    end function s3_exists_uri
+
+    ! Put an object using s3:// URI
+    function s3_put_uri(uri, content) result(success)
+        character(len=*), intent(in) :: uri
+        character(len=*), intent(in) :: content
+        logical :: success
+        character(len=:), allocatable :: bucket, key
+        type(s3_config) :: temp_config
+        logical :: uri_parsed
+
+        success = .false.
+
+        ! Try to parse as s3:// URI
+        call parse_s3_uri(uri, bucket, key, uri_parsed)
+        if (.not. uri_parsed) then
+            ! Not a s3:// URI, treat as regular key
+            success = s3_put_object(uri, content)
+            return
+        end if
+
+        ! Use parsed bucket if different from current config
+        if (allocated(bucket) .and. len_trim(bucket) > 0) then
+            temp_config = current_config
+            temp_config%bucket = bucket
+            call s3_init(temp_config)
+            success = s3_put_object(key, content)
+            ! Restore original config
+            call s3_init(current_config)
+        else
+            success = s3_put_object(key, content)
+        end if
+    end function s3_put_uri
+
+    ! Delete an object using s3:// URI
+    function s3_delete_uri(uri) result(success)
+        character(len=*), intent(in) :: uri
+        logical :: success
+        character(len=:), allocatable :: bucket, key
+        type(s3_config) :: temp_config
+        logical :: uri_parsed
+
+        success = .false.
+
+        ! Try to parse as s3:// URI
+        call parse_s3_uri(uri, bucket, key, uri_parsed)
+        if (.not. uri_parsed) then
+            ! Not a s3:// URI, treat as regular key
+            success = s3_delete_object(uri)
+            return
+        end if
+
+        ! Use parsed bucket if different from current config
+        if (allocated(bucket) .and. len_trim(bucket) > 0) then
+            temp_config = current_config
+            temp_config%bucket = bucket
+            call s3_init(temp_config)
+            success = s3_delete_object(key)
+            ! Restore original config
+            call s3_init(current_config)
+        else
+            success = s3_delete_object(key)
+        end if
+    end function s3_delete_uri
 
 end module s3_http

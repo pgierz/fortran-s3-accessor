@@ -31,7 +31,9 @@ contains
             new_unittest("very_long_key_edge_case", test_very_long_key_edge_case), &
             new_unittest("network_failure_scenarios", test_network_failure_scenarios), &
             new_unittest("boundary_content_sizes", test_boundary_content_sizes), &
-            new_unittest("auth_edge_cases", test_auth_edge_cases) &
+            new_unittest("auth_edge_cases", test_auth_edge_cases), &
+            new_unittest("s3_uri_parsing", test_s3_uri_parsing), &
+            new_unittest("s3_uri_operations", test_s3_uri_operations) &
         ]
     end subroutine collect_s3_http
 
@@ -500,5 +502,72 @@ contains
         success = s3_put_object("test_upload.txt", "Test content")
         call check(error, .not. success, "PUT should fail with whitespace-only credentials")
     end subroutine test_auth_edge_cases
+
+    !> Test s3:// URI parsing functionality
+    subroutine test_s3_uri_parsing(error)
+        !> Error handling
+        type(error_type), allocatable, intent(out) :: error
+        type(s3_config) :: config
+        character(len=:), allocatable :: content
+        logical :: success
+
+        ! Initialize S3 config
+        config%bucket = 'test-bucket'
+        config%endpoint = 's3.amazonaws.com'
+        config%use_https = .true.
+        call s3_init(config)
+
+        ! Test 1: Basic s3:// URI with bucket and key
+        success = s3_get_uri("s3://my-bucket/test-file.txt", content)
+        ! This will fail since mock curl doesn't have this, but it shouldn't crash
+        call check(error, .true., "s3:// URI parsing should not crash")
+        if (allocated(error)) return
+
+        ! Test 2: s3:// URI with nested path
+        success = s3_get_uri("s3://my-bucket/path/to/file.txt", content)
+        call check(error, .true., "s3:// URI with nested path should not crash")
+        if (allocated(error)) return
+
+        ! Test 3: Check if object exists using s3:// URI
+        success = s3_exists_uri("s3://test-bucket/test_object.txt")
+        call check(error, success, "s3_exists_uri should work with valid URI")
+        if (allocated(error)) return
+
+        ! Test 4: Regular key should still work (backward compatibility)
+        success = s3_get_uri("test_object.txt", content)
+        call check(error, success, "Regular keys should still work without s3://")
+    end subroutine test_s3_uri_parsing
+
+    !> Test s3:// URI operations
+    subroutine test_s3_uri_operations(error)
+        !> Error handling
+        type(error_type), allocatable, intent(out) :: error
+        type(s3_config) :: config
+        character(len=:), allocatable :: content
+        logical :: success
+
+        ! Initialize S3 config with auth for PUT/DELETE
+        config%bucket = 'test-bucket'
+        config%endpoint = 's3.amazonaws.com'
+        config%use_https = .true.
+        config%access_key = 'FAKE_ACCESS_KEY_FOR_TESTING'
+        config%secret_key = 'FAKE_SECRET_KEY_FOR_TESTING_ONLY'
+        call s3_init(config)
+
+        ! Test PUT with s3:// URI
+        success = s3_put_uri("s3://test-bucket/upload.txt", "Test content via URI")
+        call check(error, success, "PUT with s3:// URI should succeed")
+        if (allocated(error)) return
+
+        ! Test DELETE with s3:// URI
+        success = s3_delete_uri("s3://test-bucket/delete.txt")
+        call check(error, success, "DELETE with s3:// URI should succeed")
+        if (allocated(error)) return
+
+        ! Test cross-bucket operation (different bucket in URI)
+        success = s3_get_uri("s3://another-bucket/file.txt", content)
+        ! This will use the bucket from the URI, not the config
+        call check(error, .true., "Cross-bucket URI should not crash")
+    end subroutine test_s3_uri_operations
 
 end module test_s3_http

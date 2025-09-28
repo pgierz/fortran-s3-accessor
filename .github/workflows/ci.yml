@@ -18,12 +18,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
         gcc-version: [11, 12, 13]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0  # Need full history for version generation
 
@@ -55,12 +55,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
         build-type: [Debug, Release]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -87,15 +87,19 @@ jobs:
     name: Build Documentation
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: '3.x'
 
@@ -113,13 +117,15 @@ jobs:
           name: documentation
           path: docs/generated/
 
+      - name: Setup Pages
+        if: github.event_name == 'push'
+        uses: actions/configure-pages@v5
+
       - name: Deploy to GitHub Pages
         if: github.event_name == 'push'
-        uses: peaceiris/actions-gh-pages@v3
+        uses: actions/deploy-pages@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs/generated
-          force_orphan: true
+          artifact_name: documentation
 
   lint:
     name: Code Quality
@@ -127,7 +133,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Fortran
         uses: fortran-lang/setup-fortran@v1

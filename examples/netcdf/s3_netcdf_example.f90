@@ -15,9 +15,8 @@ program s3_netcdf_example
     character(len=100) :: title, source_name
     integer :: file_size
 
-    print *, '================================================'
-    print *, 'ESGF Climate Model NetCDF via S3 Example'
-    print *, '================================================'
+    print *, 'S3 NetCDF Reading Example'
+    print *, '========================================'
     print *, ''
 
     ! Configure S3 access for public bucket (no authentication needed)
@@ -28,57 +27,31 @@ program s3_netcdf_example
     config%secret_key = ''
     call s3_init(config)
 
-    print *, 'Downloading ESGF climate model NetCDF file from S3...'
-    print *, 'URI: ', climate_uri
+    print *, 'Reading NetCDF file from S3: ', climate_uri
     print *, ''
 
     ! Download the NetCDF file from S3
     success = s3_get_uri(climate_uri, content)
     if (.not. success) then
-        print *, 'ERROR: Failed to download file from S3'
-        print *, 'This might be due to:'
-        print *, '  - Network connectivity issues'
-        print *, '  - File not found (ESGF dataset may be temporarily unavailable)'
-        print *, '  - S3 access restrictions'
+        print *, 'Error reading dataset: Failed to download from S3'
         stop 1
     end if
 
-    print *, 'Successfully downloaded file, size: ', len(content), ' bytes'
+    print *, 'Dataset successfully opened!'
+    print *, ''
 
     ! Write content to temporary file for NetCDF processing
-    print *, 'Writing to temporary file: ', temp_file
     open(unit=10, file=temp_file, form='unformatted', access='stream', status='replace')
     write(10) content
     close(10)
-    print *, 'Temporary file written successfully'
-    print *, ''
-
-    ! Open NetCDF file and read metadata
-    print *, 'Opening NetCDF file...'
     status = nf90_open(temp_file, NF90_NOWRITE, ncid)
     if (status /= NF90_NOERR) then
-        print *, 'ERROR: Failed to open NetCDF file: ', nf90_strerror(status)
+        print *, 'Error: Failed to open NetCDF file: ', nf90_strerror(status)
         stop 1
     end if
 
-    ! Read global attributes
-    print *, 'Reading NetCDF metadata:'
-    print *, '------------------------'
-
-    ! Get title attribute
-    status = nf90_get_att(ncid, NF90_GLOBAL, 'title', title)
-    if (status == NF90_NOERR) then
-        print *, 'Title: ', trim(title)
-    end if
-
-    ! Get source name
-    status = nf90_get_att(ncid, NF90_GLOBAL, 'instrument_type', source_name)
-    if (status == NF90_NOERR) then
-        print *, 'Instrument: ', trim(source_name)
-    end if
-
-    ! List some variables
-    call list_netcdf_variables(ncid)
+    print *, 'Dataset representation:'
+    call display_netcdf_info(ncid)
 
     ! Close NetCDF file
     status = nf90_close(ncid)
@@ -100,33 +73,63 @@ program s3_netcdf_example
 
 contains
 
-    subroutine list_netcdf_variables(ncid)
+    subroutine display_netcdf_info(ncid)
         integer, intent(in) :: ncid
-        integer :: nvars, i, status, varid
-        character(len=NF90_MAX_NAME) :: var_name
-        integer :: var_type, ndims
+        integer :: ndims, nvars, ngatts, unlimdimid, status
+        integer :: i, varid, var_type, var_ndims
+        character(len=NF90_MAX_NAME) :: var_name, dim_name
         integer, dimension(NF90_MAX_VAR_DIMS) :: dimids
+        integer :: dim_len
+        character(len=256) :: att_value
 
-        ! Get number of variables
-        status = nf90_inquire(ncid, nvariables=nvars)
+        ! Get file info
+        status = nf90_inquire(ncid, ndims, nvars, ngatts, unlimdimid)
         if (status /= NF90_NOERR) return
 
-        print *, ''
-        print *, 'Variables in this NetCDF file:'
-        print *, '------------------------------'
+        print *, 'NetCDF Dataset Information:'
+        print *, '---------------------------'
+        print *, 'Dimensions:'
 
-        ! List first 5 variables to avoid too much output
+        ! Show dimensions
+        do i = 1, ndims
+            status = nf90_inquire_dimension(ncid, i, dim_name, dim_len)
+            if (status == NF90_NOERR) then
+                print *, '  ', trim(dim_name), ': ', dim_len
+            end if
+        end do
+
+        print *, 'Data variables:'
+
+        ! Show first few variables
         do i = 1, min(nvars, 5)
             varid = i
-            status = nf90_inquire_variable(ncid, varid, var_name, var_type, ndims, dimids)
+            status = nf90_inquire_variable(ncid, varid, var_name, var_type, var_ndims, dimids)
             if (status == NF90_NOERR) then
-                print *, trim(var_name), ' (type: ', var_type, ', dims: ', ndims, ')'
+                print *, '  ', trim(var_name), ' (dims: ', var_ndims, ')'
             end if
         end do
 
         if (nvars > 5) then
-            print *, '... and ', nvars - 5, ' more variables'
+            print *, '  ... and ', nvars - 5, ' more variables'
         end if
-    end subroutine list_netcdf_variables
+
+        ! Show some global attributes
+        print *, 'Attributes:'
+        status = nf90_get_att(ncid, NF90_GLOBAL, 'title', att_value)
+        if (status == NF90_NOERR) then
+            print *, '  title: ', trim(att_value)
+        end if
+
+        status = nf90_get_att(ncid, NF90_GLOBAL, 'source', att_value)
+        if (status == NF90_NOERR) then
+            print *, '  source: ', trim(att_value)
+        end if
+
+        status = nf90_get_att(ncid, NF90_GLOBAL, 'institution', att_value)
+        if (status == NF90_NOERR) then
+            print *, '  institution: ', trim(att_value)
+        end if
+
+    end subroutine display_netcdf_info
 
 end program s3_netcdf_example

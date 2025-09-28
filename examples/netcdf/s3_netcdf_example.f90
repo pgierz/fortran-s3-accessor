@@ -78,7 +78,6 @@ contains
         character(len=NF90_MAX_NAME) :: var_name, dim_name
         integer, dimension(NF90_MAX_VAR_DIMS) :: dimids
         integer :: dim_len
-        character(len=256) :: att_value
 
         ! Get file info
         status = nf90_inquire(ncid, ndims, nvars, ngatts, unlimdimid)
@@ -113,21 +112,31 @@ contains
 
         ! Show some global attributes
         print *, 'Attributes:'
-        status = nf90_get_att(ncid, NF90_GLOBAL, 'title', att_value)
-        if (status == NF90_NOERR) then
-            print *, '  title: ', trim(att_value)
-        end if
-
-        status = nf90_get_att(ncid, NF90_GLOBAL, 'source', att_value)
-        if (status == NF90_NOERR) then
-            print *, '  source: ', trim(att_value)
-        end if
-
-        status = nf90_get_att(ncid, NF90_GLOBAL, 'institution', att_value)
-        if (status == NF90_NOERR) then
-            print *, '  institution: ', trim(att_value)
-        end if
+        call safe_get_attribute(ncid, 'title')
+        call safe_get_attribute(ncid, 'source')
+        call safe_get_attribute(ncid, 'institution')
 
     end subroutine display_netcdf_info
+
+    subroutine safe_get_attribute(ncid, attr_name)
+        integer, intent(in) :: ncid
+        character(len=*), intent(in) :: attr_name
+        integer :: status, att_len
+        character(len=:), allocatable :: att_value
+
+        ! First get the attribute length
+        status = nf90_inquire_attribute(ncid, NF90_GLOBAL, attr_name, len=att_len)
+        if (status /= NF90_NOERR) return
+
+        ! Allocate string of correct length
+        allocate(character(len=att_len) :: att_value)
+
+        ! Get the attribute value
+        status = nf90_get_att(ncid, NF90_GLOBAL, attr_name, att_value)
+        if (status == NF90_NOERR) then
+            print *, '  ', trim(attr_name), ': ', trim(att_value)
+        end if
+
+    end subroutine safe_get_attribute
 
 end program s3_netcdf_example

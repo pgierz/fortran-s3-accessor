@@ -1,0 +1,2 @@
+Content for testing URL encoding with special characters in key names.
+This file has spaces and % characters in its name to test URL encoding.

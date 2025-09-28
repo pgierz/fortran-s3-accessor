@@ -1,0 +1,15 @@
+This is a large content file for testing boundary conditions.
+Line 2 of large content file.
+Line 3 of large content file.
+Line 4 of large content file.
+Line 5 of large content file.
+Line 6 of large content file.
+Line 7 of large content file.
+Line 8 of large content file.
+Line 9 of large content file.
+Line 10 of large content file.
+This content is repeated multiple times to create a larger file for testing.
+ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz!@#$%^&*()
+This line contains special characters: äöüß中文한국어日本語русский
+Testing Unicode support and larger file sizes for boundary condition testing.
+The file should be large enough to test proper memory allocation and handling.

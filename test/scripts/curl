@@ -1,11 +1,6 @@
 #!/bin/bash
 # Mock curl script for testing S3 operations
 
-# Only mock if F90S3_TEST_MODE is set
-if [ "$F90S3_TEST_MODE" != "true" ] && [ "$F90S3_TEST_MODE" != "1" ]; then
-    exec /usr/bin/curl "$@"
-fi
-
 # Directory containing mock responses
 RESPONSE_DIR="$(dirname "$0")/../data/responses"
 
@@ -13,6 +8,9 @@ RESPONSE_DIR="$(dirname "$0")/../data/responses"
 OUTPUT_FILE=""
 URL=""
 IS_HEAD_REQUEST=false
+IS_PUT_REQUEST=false
+IS_DELETE_REQUEST=false
+DATA_FILE=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -24,7 +22,21 @@ while [[ $# -gt 0 ]]; do
             IS_HEAD_REQUEST=true
             shift
             ;;
-        -s|-X|-S)
+        -X)
+            if [ "$2" = "PUT" ]; then
+                IS_PUT_REQUEST=true
+            elif [ "$2" = "DELETE" ]; then
+                IS_DELETE_REQUEST=true
+            fi
+            shift 2
+            ;;
+        --data-binary)
+            if [[ "$2" =~ ^@ ]]; then
+                DATA_FILE="${2#@}"  # Remove @ prefix
+            fi
+            shift 2
+            ;;
+        -s|-S)
             shift
             ;;
         http*|https*)
@@ -41,24 +53,56 @@ done
 # URL format: https://bucket.s3.amazonaws.com/key
 if [[ "$URL" =~ /([^/]+)$ ]]; then
     KEY="${BASH_REMATCH[1]}"
+    # URL encode the key for file lookup (space -> %20, etc.)
+    ENCODED_KEY=$(printf '%s\n' "$KEY" | sed 's/ /%20/g')
 else
     KEY=""
+    ENCODED_KEY=""
 fi
 
 # Determine response file based on key
 if [ "$IS_HEAD_REQUEST" = true ]; then
     # HEAD request - checking if object exists
-    if [ -f "$RESPONSE_DIR/head_${KEY}" ]; then
-        cat "$RESPONSE_DIR/head_${KEY}"
+    if [ -f "$RESPONSE_DIR/head_${ENCODED_KEY}" ]; then
+        cat "$RESPONSE_DIR/head_${ENCODED_KEY}"
         exit 0
     else
         exit 22  # curl error code for 404
     fi
 fi
 
+# PUT request - upload object content
+if [ "$IS_PUT_REQUEST" = true ]; then
+    # Mock PUT success (HTTP 200) for any object with credentials
+    # In real S3, this would require AWS signature authentication
+    exit 0
+fi
+
+# DELETE request - delete object
+if [ "$IS_DELETE_REQUEST" = true ]; then
+    # Mock DELETE success (HTTP 204) for any object with credentials
+    # In real S3, this would require AWS signature authentication
+    # Simulate failure for certain test keys
+    if [ "$KEY" = "delete_failure_test.txt" ]; then
+        exit 22  # curl error code for HTTP error
+    fi
+    exit 0
+fi
+
 # GET request - return object content
 if [ -n "$OUTPUT_FILE" ]; then
-    if [ -f "$RESPONSE_DIR/${KEY}" ]; then
+    # Special test cases for various scenarios
+    if [ "$KEY" = "network_failure_test.txt" ]; then
+        # Simulate network failure
+        exit 7  # curl error code for couldn't connect to host
+    elif [ "$KEY" = "timeout_test.txt" ]; then
+        # Simulate timeout
+        exit 28  # curl error code for operation timeout
+    elif [ "$KEY" = "malformed_response.txt" ]; then
+        # Special case for testing malformed XML responses
+        cp "$RESPONSE_DIR/malformed.xml" "$OUTPUT_FILE"
+        exit 0
+    elif [ -f "$RESPONSE_DIR/${KEY}" ]; then
         # File exists - return its content
         cp "$RESPONSE_DIR/${KEY}" "$OUTPUT_FILE"
         exit 0
@@ -75,5 +119,6 @@ if [ -n "$OUTPUT_FILE" ]; then
     fi
 fi
 
-# Default: pass through to real curl
-exec /usr/bin/curl "$@"
+# Default: if we get here, it's an unsupported operation
+echo "Mock curl: Unsupported operation" >&2
+exit 1

@@ -1,5 +1,3 @@
-# Pull Request
-
 ## Description
 
 Brief description of the changes in this PR.
@@ -13,24 +11,34 @@ Brief description of the changes in this PR.
 - [ ] Performance improvement
 - [ ] Code refactoring
 
+## Related Issues
+
+Fixes #(issue number)
+
+## Changes Made
+
+- Change 1
+- Change 2
+- Change 3
+
 ## Testing
 
-- [ ] Tests pass locally with my changes
-- [ ] I have added tests that prove my fix is effective or that my feature works
-- [ ] New and existing unit tests pass locally with my changes
-- [ ] I have tested both FPM and CMake builds
+- [ ] All existing tests pass
+- [ ] New tests added for new functionality
+- [ ] Tests pass with mock curl: `PATH="test/scripts:$PATH" fpm test`
+- [ ] Code compiles with strict flags: `gfortran -Wall -Wextra -Werror -std=f2008 src/*.f90`
+
+## Documentation
+
+- [ ] FORD documentation comments added/updated
+- [ ] README updated (if needed)
+- [ ] CONTRIBUTING.md followed
+- [ ] Examples added/updated (if applicable)
 
 ## Checklist
 
-- [ ] My code follows the project's style guidelines
-- [ ] I have performed a self-review of my own code
-- [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] I have made corresponding changes to the documentation
-- [ ] My changes generate no new warnings
-- [ ] I have added tests that prove my fix is effective or that my feature works
-- [ ] New and existing unit tests pass locally with my changes
-- [ ] Any dependent changes have been merged and published
-
-## Additional Notes
-
-Add any additional notes about the PR here.
+- [ ] Code follows the project's style guidelines
+- [ ] Self-review completed
+- [ ] Comments added for complex code
+- [ ] No new compiler warnings
+- [ ] Changes are backwards compatible (or breaking changes documented)

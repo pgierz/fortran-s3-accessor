@@ -50,7 +50,8 @@ program test_streaming
 
     ! Download file (AWI grid file from ESGF)
     print *, 'Downloading AWI grid file...'
-    success = s3_get_object('CMIP6/CMIP/AWI/AWI-ESM-1-1-LR/piControl/r1i1p1f1/fx/areacella/gn/v20200212/areacella_fx_AWI-ESM-1-1-LR_piControl_r1i1p1f1_gn.nc', content)
+    success = s3_get_object('CMIP6/CMIP/AWI/AWI-ESM-1-1-LR/piControl/r1i1p1f1/fx/' // &
+        'areacella/gn/v20200212/areacella_fx_AWI-ESM-1-1-LR_piControl_r1i1p1f1_gn.nc', content)
 
     if (success) then
         print *, '  Success! Downloaded', len(content), 'bytes'

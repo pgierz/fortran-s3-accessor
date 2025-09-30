@@ -27,7 +27,8 @@ program test_simple
     ! Test 1: Check if NetCDF file exists
     print *
     print *, 'Test 1: Checking if AWI grid file exists...'
-    exists = s3_object_exists('CMIP6/CMIP/AWI/AWI-ESM-1-1-LR/piControl/r1i1p1f1/fx/areacella/gn/v20200212/areacella_fx_AWI-ESM-1-1-LR_piControl_r1i1p1f1_gn.nc')
+    exists = s3_object_exists('CMIP6/CMIP/AWI/AWI-ESM-1-1-LR/piControl/r1i1p1f1/fx/' // &
+        'areacella/gn/v20200212/areacella_fx_AWI-ESM-1-1-LR_piControl_r1i1p1f1_gn.nc')
     if (exists) then
         print *, '  Grid file found!'
     else

@@ -24,7 +24,7 @@ jobs:
           version: 12
 
       - name: Setup FPM
-        uses: fortran-lang/setup-fpm@v5
+        uses: fortran-lang/setup-fpm@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -32,7 +32,9 @@ jobs:
         run: fpm build --profile release
 
       - name: Run tests
-        run: fpm test
+        run: |
+          chmod +x test/scripts/curl
+          PATH="${PWD}/test/scripts:$PATH" fpm test
 
       - name: Build with CMake
         run: |

@@ -19,6 +19,7 @@ endif()
 
 # Source files - direct implementation
 set(LIB_SOURCES
+  src/curl_stream.f90
   src/s3_http.f90
   src/s3_io.f90
 )
@@ -42,6 +43,7 @@ install(TARGETS s3_accessor
 )
 
 install(FILES
+  ${CMAKE_CURRENT_BINARY_DIR}/curl_stream.mod
   ${CMAKE_CURRENT_BINARY_DIR}/s3_http.mod
   ${CMAKE_CURRENT_BINARY_DIR}/s3_io.mod
   DESTINATION include

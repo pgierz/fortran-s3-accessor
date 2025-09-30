@@ -213,7 +213,7 @@ contains
         character(len=2048) :: url
         character(len=4096) :: cmd
         integer :: exit_status
-        character(len=256) :: msg
+        character(len=2048) :: msg
 
         success = .false.
         if (.not. initialized) then
@@ -221,7 +221,12 @@ contains
             return
         end if
 
-        write(msg, '(A,A)') 'Getting object: ', trim(key)
+        ! Log key (truncated if too long for buffer)
+        if (len_trim(key) <= 2030) then  ! "Getting object: " is 17 chars
+            write(msg, '(A,A)') 'Getting object: ', trim(key)
+        else
+            write(msg, '(A,A,A)') 'Getting object: ', key(1:2020), '...'
+        end if
         call s3_log_info(trim(msg))
 
         ! Build URL

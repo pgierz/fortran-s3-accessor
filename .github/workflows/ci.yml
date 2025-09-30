@@ -146,7 +146,10 @@ jobs:
         run: |
           gfortran -c -Wall -Wextra -Werror -std=f2008 \
                    -fcheck=all -fbacktrace \
-                   src/*.f90
+                   src/s3_logger.f90 \
+                   src/curl_stream.f90 \
+                   src/s3_http.f90 \
+                   src/s3_io.f90
 
       - name: Check for TODO/FIXME comments
         run: |

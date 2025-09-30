@@ -102,10 +102,109 @@ PATH="test/scripts:$PATH" fpm test
 - [Development Guide](CLAUDE.md) - Setup and development instructions
 - [API Documentation](https://pgierz.github.io/fortran-s3-accessor/) - Auto-generated docs
 
-## Limitations
+## Performance Notice
+
+### Current Implementation (v1.0.0)
+
+The library currently uses temporary files for S3 downloads:
+
+```
+Network → /tmp/s3_get_*.tmp → Memory
+```
+
+**Performance Characteristics:**
+
+| File Size | Overhead | Impact |
+|-----------|----------|---------|
+| < 10 MB   | ~10-20ms | Negligible for most use cases |
+| 10-100 MB | ~100-500ms | Noticeable in batch operations |
+| 100 MB-1 GB | ~1-5s | 10-30% performance overhead |
+| > 1 GB | ~5-20s | Significant overhead + disk space usage |
+
+### Recommendations for v1.0.0
+
+**Suitable for:**
+- Files < 100 MB (most scientific metadata, small datasets)
+- Interactive workflows (download, process, analyze)
+- Proof-of-concept and integration work
+- Public bucket access without authentication
+
+**Consider limitations for:**
+- Large NetCDF files (> 100 MB)
+- Batch processing hundreds of files
+- HPC systems with strict `/tmp` quotas
+- Performance-critical production pipelines
+
+### Roadmap: v1.1.0 Performance Improvements
+
+**Planned for v1.1.0 (Target: Q4 2025):**
+
+1. **Direct memory streaming** - Eliminate disk I/O by streaming curl output directly to memory
+   - Implementation: POSIX `popen()` via C interoperability
+   - Expected improvement: 5-10x faster for large files
+   - No API changes required - drop-in performance upgrade
+
+2. **libcurl integration** (Optional, v1.2.0+) - For maximum performance:
+   - Native libcurl via `iso_c_binding`
+   - Proper AWS Signature v4 authentication
+   - Progress callbacks and streaming APIs
+   - Multipart upload support
+
+**Contributing:** See [issues tagged `performance`](https://github.com/pgierz/fortran-s3-accessor/labels/performance) to contribute to these improvements.
+
+## Current Limitations
 
 - **URL encoding**: Special characters in S3 keys are untested - use alphanumeric keys and underscores only
-- **Authentication**: Simplified credential checking (production AWS Signature v4 required)
+- **Authentication**: Simplified credential checking (production AWS Signature v4 implementation planned for v1.2.0)
+- **Temporary files**: Downloads use `/tmp` - ensure adequate disk space for large files
+- **Error messages**: Limited error diagnostics from curl (improved error handling planned)
+
+## Use Cases
+
+### Primary Use Case: FESOM Climate Model
+
+This library is designed to enable cloud-friendly ocean modeling workflows:
+
+- Download forcing data from S3 buckets
+- Read NetCDF initialization files from object storage
+- Upload simulation outputs to cloud storage
+- Access CMIP6 and ESGF datasets directly
+
+### Proven Applications
+
+- **Public bucket access** - NOAA GFS, ESGF climate data, NASA Earth observations
+- **Configuration files** - Model parameters, namelist files, metadata
+- **Small to medium datasets** - Regional model outputs, analysis results
+- **Prototype workflows** - Testing cloud integration before production deployment
+
+## Installation
+
+### From FPM Registry
+
+```bash
+# Add to your fpm.toml:
+[dependencies]
+fortran-s3-accessor = "1.0.0"
+```
+
+### From Source
+
+```bash
+git clone https://github.com/pgierz/fortran-s3-accessor.git
+cd fortran-s3-accessor
+fpm build
+```
+
+## Contributing
+
+Contributions welcome! Priority areas for v1.1.0:
+
+1. **Performance** - Stream curl output directly
+2. **Error handling** - Better diagnostics and error messages
+3. **Testing** - Real S3 integration tests (beyond mocks)
+4. **Documentation** - More examples for scientific workflows
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 

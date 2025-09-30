@@ -1,9 +1,13 @@
 name = "fortran-s3-accessor"
-version = "0.1.0"
-license = "license"
+version = "1.0.0"
+license = "MIT"
 author = "Paul Gierz"
 maintainer = "pgierz@awi.de"
 copyright = "Copyright 2025, Paul Gierz"
+homepage = "https://github.com/pgierz/fortran-s3-accessor"
+description = "Simple Fortran library for S3-compatible object storage access"
+categories = ["io", "cloud", "scientific-computing"]
+keywords = ["s3", "object-storage", "netcdf", "climate", "hpc"]
 [build]
 auto-executables = true
 auto-tests = true

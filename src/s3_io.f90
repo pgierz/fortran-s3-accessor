@@ -1,16 +1,54 @@
+!> High-level Fortran I/O interface for S3 operations.
+!>
+!> This module provides a familiar Fortran-style I/O interface for working with S3 objects.
+!> It supports operations similar to standard Fortran file I/O: open, read, write, close, and rewind.
+!> The module internally buffers content for efficient line-by-line operations.
+!>
+!> ## Features
+!>
+!> - Familiar Fortran I/O patterns (open/read/write/close)
+!> - Line-based text file operations
+!> - Internal buffering for efficient I/O
+!> - Support for up to 100 concurrent file handles
+!> - Automatic upload on close for write operations
+!>
+!> ## Usage
+!>
+!> ```fortran
+!> use s3_http
+!> use s3_io
+!> type(s3_config) :: config
+!> integer :: unit, iostat
+!> character(len=1024) :: line
+!>
+!> ! Initialize S3
+!> config%bucket = 'my-bucket'
+!> call s3_init(config)
+!>
+!> ! Open and read
+!> call s3_open(unit, 'data/input.txt', 'read', iostat)
+!> call s3_read_line(unit, line, iostat)
+!> call s3_close(unit, iostat)
+!> ```
+!>
+!> @note This module depends on the s3_http module for underlying S3 operations.
 module s3_io
     use s3_http
     implicit none
     private
 
-    integer, parameter :: MAX_FILES = 100
+    integer, parameter :: MAX_FILES = 100  !< Maximum number of concurrent open files
 
+    !> Internal file handle type for managing S3 objects as file-like entities.
+    !>
+    !> This type maintains the state of an open S3 object, including its content buffer,
+    !> read/write position, and mode. Used internally by the module.
     type :: s3_file
-        logical :: is_open = .false.
-        character(len=256) :: key = ''
-        character(len=:), allocatable :: buffer
-        integer :: position = 1
-        logical :: is_write = .false.
+        logical :: is_open = .false.                !< Whether this file handle is in use
+        character(len=256) :: key = ''              !< S3 object key
+        character(len=:), allocatable :: buffer     !< Content buffer
+        integer :: position = 1                     !< Current read/write position
+        logical :: is_write = .false.               !< Write mode flag
     end type s3_file
 
     type(s3_file), save :: files(MAX_FILES)
@@ -23,6 +61,29 @@ module s3_io
 
 contains
 
+    !> Open an S3 object for reading or writing.
+    !>
+    !> Opens an S3 object and returns a unit number for subsequent I/O operations.
+    !> For read mode, the object is downloaded immediately. For write mode, content
+    !> is buffered in memory until s3_close() is called.
+    !>
+    !> @param[out] unit The allocated unit number (set to -1 on error)
+    !> @param[in] key The S3 object key to open
+    !> @param[in] mode Open mode: 'read'/'r' for reading, 'write'/'w' for writing
+    !> @param[out] iostat Status code: 0 on success, -1 on error
+    !>
+    !> ## Example
+    !>
+    !> ```fortran
+    !> integer :: unit, iostat
+    !>
+    !> ! Open for reading
+    !> call s3_open(unit, 'data/input.txt', 'read', iostat)
+    !> if (iostat == 0) then
+    !>     ! Read operations...
+    !>     call s3_close(unit, iostat)
+    !> end if
+    !> ```
     subroutine s3_open(unit, key, mode, iostat)
         integer, intent(out) :: unit
         character(len=*), intent(in) :: key
@@ -72,6 +133,24 @@ contains
         end select
     end subroutine s3_open
 
+    !> Close an S3 file handle.
+    !>
+    !> Closes an open S3 file handle. For write mode, this uploads the buffered
+    !> content to S3. The file handle is released and can be reused.
+    !>
+    !> @param[in] unit The unit number to close
+    !> @param[out] iostat Status code: 0 on success, -1 on error
+    !>
+    !> @warning For write mode, upload errors will be reflected in iostat.
+    !>
+    !> ## Example
+    !>
+    !> ```fortran
+    !> call s3_close(unit, iostat)
+    !> if (iostat /= 0) then
+    !>     print *, 'Error closing file'
+    !> end if
+    !> ```
     subroutine s3_close(unit, iostat)
         integer, intent(in) :: unit
         integer, intent(out) :: iostat
@@ -103,6 +182,27 @@ contains
         if (allocated(files(unit)%buffer)) deallocate(files(unit)%buffer)
     end subroutine s3_close
 
+    !> Read a line from an open S3 file.
+    !>
+    !> Reads the next line from the file buffer. Lines are delimited by newline characters.
+    !> The file must be opened in read mode.
+    !>
+    !> @param[in] unit The unit number to read from
+    !> @param[out] line The line content (truncated if longer than buffer)
+    !> @param[out] iostat Status code: 0 on success, -1 on EOF or error
+    !>
+    !> ## Example
+    !>
+    !> ```fortran
+    !> character(len=1024) :: line
+    !> integer :: iostat
+    !>
+    !> do
+    !>     call s3_read_line(unit, line, iostat)
+    !>     if (iostat /= 0) exit
+    !>     print *, trim(line)
+    !> end do
+    !> ```
     subroutine s3_read_line(unit, line, iostat)
         integer, intent(in) :: unit
         character(len=*), intent(out) :: line
@@ -158,6 +258,21 @@ contains
         end if
     end subroutine s3_read_line
 
+    !> Write a line to an open S3 file.
+    !>
+    !> Appends a line to the file buffer. A newline character is automatically added.
+    !> The file must be opened in write mode. Content is uploaded when s3_close() is called.
+    !>
+    !> @param[in] unit The unit number to write to
+    !> @param[in] line The line content to write
+    !> @param[out] iostat Status code: 0 on success, -1 on error
+    !>
+    !> ## Example
+    !>
+    !> ```fortran
+    !> call s3_write_line(unit, 'temperature,pressure', iostat)
+    !> call s3_write_line(unit, '25.3,1013.2', iostat)
+    !> ```
     subroutine s3_write_line(unit, line, iostat)
         integer, intent(in) :: unit
         character(len=*), intent(in) :: line
@@ -185,6 +300,23 @@ contains
         end if
     end subroutine s3_write_line
 
+    !> Rewind an S3 file to the beginning.
+    !>
+    !> Resets the read position to the start of the file buffer. Only valid for read mode.
+    !>
+    !> @param[in] unit The unit number to rewind
+    !> @param[out] iostat Status code: 0 on success, -1 on error
+    !>
+    !> ## Example
+    !>
+    !> ```fortran
+    !> ! Read file twice
+    !> call s3_open(unit, 'data/file.txt', 'read', iostat)
+    !> ! ... read operations ...
+    !> call s3_rewind(unit, iostat)
+    !> ! ... read again from start ...
+    !> call s3_close(unit, iostat)
+    !> ```
     subroutine s3_rewind(unit, iostat)
         integer, intent(in) :: unit
         integer, intent(out) :: iostat

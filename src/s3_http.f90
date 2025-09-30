@@ -1,15 +1,64 @@
+!> Core S3 HTTP operations module providing direct access to S3-compatible object storage.
+!>
+!> This module provides low-level HTTP-based operations for interacting with S3-compatible
+!> object storage services. It uses system curl commands to perform GET, PUT, DELETE, and
+!> HEAD HTTP operations.
+!>
+!> ## Features
+!>
+!> - Direct S3 operations via curl HTTP requests
+!> - Support for both authenticated and public bucket access
+!> - URI-based operations with s3:// protocol support
+!> - HTTP and HTTPS protocol support
+!> - Configurable endpoints for S3-compatible services
+!>
+!> ## Usage
+!>
+!> ```fortran
+!> use s3_http
+!> type(s3_config) :: config
+!> character(len=:), allocatable :: content
+!> logical :: success
+!>
+!> ! Configure and initialize
+!> config%bucket = 'my-bucket'
+!> config%region = 'us-east-1'
+!> config%use_https = .true.
+!> call s3_init(config)
+!>
+!> ! Download object
+!> success = s3_get_object('data/file.txt', content)
+!> ```
+!>
+!> @note This module requires the `curl` command to be available in the system PATH.
+!> @warning URL encoding of special characters in S3 keys is not currently supported.
 module s3_http
     implicit none
     private
 
-    ! Public configuration type
+    !> S3 configuration type containing connection parameters and credentials.
+    !>
+    !> This type holds all configuration needed to connect to an S3-compatible
+    !> object storage service. For public buckets, credentials can be left empty.
+    !>
+    !> ## Example
+    !>
+    !> ```fortran
+    !> type(s3_config) :: config
+    !> config%bucket = 'noaa-gfs-bdp-pds'
+    !> config%region = 'us-east-1'
+    !> config%endpoint = 's3.amazonaws.com'
+    !> config%use_https = .true.
+    !> config%access_key = ''  ! Empty for public bucket
+    !> config%secret_key = ''
+    !> ```
     type, public :: s3_config
-        character(len=256) :: bucket = ''
-        character(len=256) :: region = 'us-east-1'
-        character(len=256) :: endpoint = 's3.amazonaws.com'
-        character(len=256) :: access_key = ''
-        character(len=256) :: secret_key = ''
-        logical :: use_https = .true.
+        character(len=256) :: bucket = ''        !< S3 bucket name
+        character(len=256) :: region = 'us-east-1'  !< AWS region (default: us-east-1)
+        character(len=256) :: endpoint = 's3.amazonaws.com'  !< S3 endpoint hostname
+        character(len=256) :: access_key = ''    !< AWS access key ID (optional for public buckets)
+        character(len=256) :: secret_key = ''    !< AWS secret access key (optional for public buckets)
+        logical :: use_https = .true.            !< Use HTTPS protocol (recommended)
     end type s3_config
 
     ! Module variables
@@ -30,8 +79,27 @@ module s3_http
 
 contains
 
-    ! Parse s3:// URI into bucket and key
-    ! Format: s3://bucket-name/path/to/object
+    !> Parse an s3:// URI into bucket name and object key components.
+    !>
+    !> Parses URIs of the format `s3://bucket-name/path/to/object` into
+    !> separate bucket and key strings for use with S3 operations.
+    !>
+    !> @param[in] uri The s3:// URI to parse
+    !> @param[out] bucket The extracted bucket name (allocatable)
+    !> @param[out] key The extracted object key/path (allocatable)
+    !> @param[out] success .true. if URI was successfully parsed, .false. otherwise
+    !>
+    !> ## Examples
+    !>
+    !> ```fortran
+    !> ! Parse URI with bucket and key
+    !> call parse_s3_uri('s3://my-bucket/data/file.txt', bucket, key, success)
+    !> ! Result: bucket='my-bucket', key='data/file.txt'
+    !>
+    !> ! Parse URI with only bucket
+    !> call parse_s3_uri('s3://my-bucket', bucket, key, success)
+    !> ! Result: bucket='my-bucket', key=''
+    !> ```
     subroutine parse_s3_uri(uri, bucket, key, success)
         character(len=*), intent(in) :: uri
         character(len=:), allocatable, intent(out) :: bucket
@@ -70,13 +138,55 @@ contains
         success = .true.
     end subroutine parse_s3_uri
 
+    !> Initialize the S3 HTTP module with configuration.
+    !>
+    !> This subroutine must be called before any S3 operations can be performed.
+    !> It stores the provided configuration for use by all subsequent operations.
+    !>
+    !> @param[in] config S3 configuration containing bucket, endpoint, and credentials
+    !>
+    !> ## Example
+    !>
+    !> ```fortran
+    !> type(s3_config) :: config
+    !> config%bucket = 'my-bucket'
+    !> config%region = 'us-east-1'
+    !> config%use_https = .true.
+    !> call s3_init(config)
+    !> ```
     subroutine s3_init(config)
         type(s3_config), intent(in) :: config
         current_config = config
         initialized = .true.
     end subroutine s3_init
 
-    ! Get an object from S3
+    !> Download an object from S3 and return its content.
+    !>
+    !> Downloads the specified object from S3 using an HTTP GET request via curl.
+    !> The content is returned as an allocatable string. Works with both public
+    !> and authenticated buckets.
+    !>
+    !> @param[in] key The S3 object key (path within the bucket)
+    !> @param[out] content The downloaded content as an allocatable string
+    !> @return .true. if download succeeded, .false. on error
+    !>
+    !> @note The module must be initialized with s3_init() before calling this function.
+    !> @warning Returns .false. if the module is not initialized or if the download fails.
+    !>
+    !> ## Example
+    !>
+    !> ```fortran
+    !> character(len=:), allocatable :: content
+    !> logical :: success
+    !>
+    !> success = s3_get_object('data/input.txt', content)
+    !> if (success) then
+    !>     print *, 'Downloaded: ', len(content), ' bytes'
+    !>     print *, content
+    !> else
+    !>     print *, 'Download failed'
+    !> end if
+    !> ```
     function s3_get_object(key, content) result(success)
         character(len=*), intent(in) :: key
         character(len=:), allocatable, intent(out) :: content
@@ -142,7 +252,32 @@ contains
         success = (ios == 0 .and. index(content, '<Error>') == 0)
     end function s3_get_object
 
-    ! Put an object to S3
+    !> Upload an object to S3.
+    !>
+    !> Uploads the provided content to S3 at the specified key using an HTTP PUT request.
+    !> This operation requires AWS credentials to be configured in the s3_config.
+    !>
+    !> @param[in] key The S3 object key (path within the bucket) where content will be stored
+    !> @param[in] content The content to upload as a string
+    !> @return .true. if upload succeeded, .false. on error
+    !>
+    !> @note Requires AWS credentials (access_key and secret_key) to be set in configuration.
+    !> @warning Returns .false. if credentials are missing or upload fails.
+    !> @warning Current implementation uses simplified authentication; production use requires AWS Signature v4.
+    !>
+    !> ## Example
+    !>
+    !> ```fortran
+    !> type(s3_config) :: config
+    !> logical :: success
+    !>
+    !> config%bucket = 'my-bucket'
+    !> config%access_key = 'AKIAIOSFODNN7EXAMPLE'
+    !> config%secret_key = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+    !> call s3_init(config)
+    !>
+    !> success = s3_put_object('results/output.txt', 'Hello S3!')
+    !> ```
     function s3_put_object(key, content) result(success)
         character(len=*), intent(in) :: key
         character(len=*), intent(in) :: content
@@ -198,7 +333,28 @@ contains
         success = (ios == 0)
     end function s3_put_object
 
-    ! Check if object exists
+    !> Check if an object exists in S3.
+    !>
+    !> Performs an HTTP HEAD request to check if an object exists without downloading it.
+    !> This is more efficient than attempting a GET request when you only need to verify existence.
+    !>
+    !> @param[in] key The S3 object key to check
+    !> @return .true. if object exists, .false. if not found or on error
+    !>
+    !> @note The module must be initialized with s3_init() before calling this function.
+    !>
+    !> ## Example
+    !>
+    !> ```fortran
+    !> logical :: exists
+    !>
+    !> exists = s3_object_exists('data/input.nc')
+    !> if (exists) then
+    !>     print *, 'File found, proceeding with download'
+    !> else
+    !>     print *, 'File not found, using defaults'
+    !> end if
+    !> ```
     function s3_object_exists(key) result(exists)
         character(len=*), intent(in) :: key
         logical :: exists
@@ -229,7 +385,30 @@ contains
         exists = (ios == 0)
     end function s3_object_exists
 
-    ! Delete an object
+    !> Delete an object from S3.
+    !>
+    !> Deletes the specified object from S3 using an HTTP DELETE request.
+    !> This operation requires AWS credentials to be configured.
+    !>
+    !> @param[in] key The S3 object key to delete
+    !> @return .true. if deletion succeeded, .false. on error
+    !>
+    !> @note Requires AWS credentials (access_key and secret_key) to be set in configuration.
+    !> @warning This operation is irreversible. Deleted objects cannot be recovered.
+    !> @warning Returns .false. if credentials are missing or deletion fails.
+    !>
+    !> ## Example
+    !>
+    !> ```fortran
+    !> logical :: success
+    !>
+    !> success = s3_delete_object('temp/scratch_data.txt')
+    !> if (success) then
+    !>     print *, 'Object deleted successfully'
+    !> else
+    !>     print *, 'Deletion failed'
+    !> end if
+    !> ```
     function s3_delete_object(key) result(success)
         character(len=*), intent(in) :: key
         logical :: success
@@ -275,7 +454,25 @@ contains
         pid = abs(int(rand_val * 100000))
     end function getpid
 
-    ! Get an object using s3:// URI
+    !> Download an object using an s3:// URI.
+    !>
+    !> Convenience function that accepts s3:// URIs and automatically extracts the bucket
+    !> name and object key. If the bucket differs from the current configuration, it
+    !> temporarily switches to that bucket for the operation.
+    !>
+    !> @param[in] uri The s3:// URI (e.g., 's3://bucket-name/path/to/object')
+    !> @param[out] content The downloaded content as an allocatable string
+    !> @return .true. if download succeeded, .false. on error
+    !>
+    !> ## Example
+    !>
+    !> ```fortran
+    !> character(len=:), allocatable :: content
+    !> logical :: success
+    !>
+    !> ! Download from different bucket using URI
+    !> success = s3_get_uri('s3://other-bucket/data/file.txt', content)
+    !> ```
     function s3_get_uri(uri, content) result(success)
         character(len=*), intent(in) :: uri
         character(len=:), allocatable, intent(out) :: content

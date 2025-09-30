@@ -31,8 +31,8 @@ program test_streaming
     end if
     print *
 
-    ! Configure for NOAA public S3 bucket
-    config%bucket = 'noaa-gfs-bdp-pds'
+    ! Configure for ESGF public S3 bucket
+    config%bucket = 'esgf-world'
     config%endpoint = 's3.amazonaws.com'
     config%region = 'us-east-1'
     config%use_https = .true.
@@ -48,9 +48,9 @@ program test_streaming
     count_before = count_tmp_files()
     print *, 'Temporary files before download:', count_before
 
-    ! Download file
-    print *, 'Downloading README.md...'
-    success = s3_get_object('README.md', content)
+    ! Download file (AWI grid file from ESGF)
+    print *, 'Downloading AWI grid file...'
+    success = s3_get_object('CMIP6/CMIP/AWI/AWI-ESM-1-1-LR/piControl/r1i1p1f1/fx/areacella/gn/v20200212/areacella_fx_AWI-ESM-1-1-LR_piControl_r1i1p1f1_gn.nc', content)
 
     if (success) then
         print *, '  Success! Downloaded', len(content), 'bytes'

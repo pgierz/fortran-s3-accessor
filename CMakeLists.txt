@@ -19,6 +19,7 @@ endif()
 
 # Source files - direct implementation
 set(LIB_SOURCES
+  src/s3_logger.f90
   src/curl_stream.f90
   src/s3_http.f90
   src/s3_io.f90

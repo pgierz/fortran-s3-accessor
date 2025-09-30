@@ -17,7 +17,7 @@ program test_streaming
     print *
 
     ! Enable DEBUG logging to see what's happening
-    call s3_set_log_level(S3_LOG_DEBUG)
+    call s3_set_log_level(S3_LOG_LEVEL_DEBUG)
     print *, 'Debug logging enabled'
     print *
 

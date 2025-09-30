@@ -18,7 +18,7 @@
 !> use s3_logger
 !>
 !> ! Set log level (default is ERROR)
-!> call s3_set_log_level(S3_LOG_DEBUG)
+!> call s3_set_log_level(S3_LOG_LEVEL_DEBUG)
 !>
 !> ! Log messages at different levels
 !> call s3_log_error('Failed to download object')
@@ -52,15 +52,15 @@ module s3_logger
     public :: s3_init_logger
 
     ! Log level constants (public)
-    integer, parameter, public :: S3_LOG_NONE = 0
-    integer, parameter, public :: S3_LOG_ERROR = 1
-    integer, parameter, public :: S3_LOG_WARN = 2
-    integer, parameter, public :: S3_LOG_INFO = 3
-    integer, parameter, public :: S3_LOG_DEBUG = 4
-    integer, parameter, public :: S3_LOG_TRACE = 5
+    integer, parameter, public :: S3_LOG_LEVEL_NONE = 0
+    integer, parameter, public :: S3_LOG_LEVEL_ERROR = 1
+    integer, parameter, public :: S3_LOG_LEVEL_WARN = 2
+    integer, parameter, public :: S3_LOG_LEVEL_INFO = 3
+    integer, parameter, public :: S3_LOG_LEVEL_DEBUG = 4
+    integer, parameter, public :: S3_LOG_LEVEL_TRACE = 5
 
     ! Current log level (default ERROR)
-    integer, save :: current_log_level = S3_LOG_ERROR
+    integer, save :: current_log_level = S3_LOG_LEVEL_ERROR
 
 contains
 
@@ -82,10 +82,10 @@ contains
 
     !> Set the current log level.
     !>
-    !> @param[in] level Log level (S3_LOG_NONE to S3_LOG_TRACE)
+    !> @param[in] level Log level (S3_LOG_LEVEL_NONE to S3_LOG_LEVEL_TRACE)
     subroutine s3_set_log_level(level)
         integer, intent(in) :: level
-        if (level >= S3_LOG_NONE .and. level <= S3_LOG_TRACE) then
+        if (level >= S3_LOG_LEVEL_NONE .and. level <= S3_LOG_LEVEL_TRACE) then
             current_log_level = level
         end if
     end subroutine s3_set_log_level
@@ -103,7 +103,7 @@ contains
     !> @param[in] message Error message to log
     subroutine s3_log_error(message)
         character(len=*), intent(in) :: message
-        if (current_log_level >= S3_LOG_ERROR) then
+        if (current_log_level >= S3_LOG_LEVEL_ERROR) then
             write(*, '(A,A)') '[S3 ERROR] ', trim(message)
         end if
     end subroutine s3_log_error
@@ -113,7 +113,7 @@ contains
     !> @param[in] message Warning message to log
     subroutine s3_log_warn(message)
         character(len=*), intent(in) :: message
-        if (current_log_level >= S3_LOG_WARN) then
+        if (current_log_level >= S3_LOG_LEVEL_WARN) then
             write(*, '(A,A)') '[S3 WARN]  ', trim(message)
         end if
     end subroutine s3_log_warn
@@ -123,7 +123,7 @@ contains
     !> @param[in] message Info message to log
     subroutine s3_log_info(message)
         character(len=*), intent(in) :: message
-        if (current_log_level >= S3_LOG_INFO) then
+        if (current_log_level >= S3_LOG_LEVEL_INFO) then
             write(*, '(A,A)') '[S3 INFO]  ', trim(message)
         end if
     end subroutine s3_log_info
@@ -133,7 +133,7 @@ contains
     !> @param[in] message Debug message to log
     subroutine s3_log_debug(message)
         character(len=*), intent(in) :: message
-        if (current_log_level >= S3_LOG_DEBUG) then
+        if (current_log_level >= S3_LOG_LEVEL_DEBUG) then
             write(*, '(A,A)') '[S3 DEBUG] ', trim(message)
         end if
     end subroutine s3_log_debug
@@ -143,7 +143,7 @@ contains
     !> @param[in] message Trace message to log
     subroutine s3_log_trace(message)
         character(len=*), intent(in) :: message
-        if (current_log_level >= S3_LOG_TRACE) then
+        if (current_log_level >= S3_LOG_LEVEL_TRACE) then
             write(*, '(A,A)') '[S3 TRACE] ', trim(message)
         end if
     end subroutine s3_log_trace
@@ -168,19 +168,19 @@ contains
 
         select case (trim(upper_str))
         case ('NONE', '0')
-            level = S3_LOG_NONE
+            level = S3_LOG_LEVEL_NONE
         case ('ERROR', '1')
-            level = S3_LOG_ERROR
+            level = S3_LOG_LEVEL_ERROR
         case ('WARN', 'WARNING', '2')
-            level = S3_LOG_WARN
+            level = S3_LOG_LEVEL_WARN
         case ('INFO', '3')
-            level = S3_LOG_INFO
+            level = S3_LOG_LEVEL_INFO
         case ('DEBUG', '4')
-            level = S3_LOG_DEBUG
+            level = S3_LOG_LEVEL_DEBUG
         case ('TRACE', '5')
-            level = S3_LOG_TRACE
+            level = S3_LOG_LEVEL_TRACE
         case default
-            level = S3_LOG_ERROR  ! Default to ERROR
+            level = S3_LOG_LEVEL_ERROR  ! Default to ERROR
             write(*, '(A,A,A)') '[S3 WARN] Unknown log level "', trim(level_str), &
                 '", defaulting to ERROR'
         end select

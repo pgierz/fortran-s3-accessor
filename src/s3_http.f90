@@ -33,6 +33,7 @@
 !> @note This module requires the `curl` command to be available in the system PATH.
 !> @warning URL encoding of special characters in S3 keys is not currently supported.
 module s3_http
+    use curl_stream, only: stream_command_output, is_streaming_available
     implicit none
     private
 
@@ -193,13 +194,64 @@ contains
         logical :: success
         character(len=2048) :: url
         character(len=4096) :: cmd
+        integer :: exit_status
+
+        success = .false.
+        if (.not. initialized) return
+
+        ! Build URL
+        if (current_config%use_https) then
+            write(url, '(A,A,A,A,A,A)') 'https://', &
+                trim(current_config%bucket), '.', &
+                trim(current_config%endpoint), '/', &
+                trim(key)
+        else
+            write(url, '(A,A,A,A,A,A)') 'http://', &
+                trim(current_config%bucket), '.', &
+                trim(current_config%endpoint), '/', &
+                trim(key)
+        end if
+
+        ! Build curl command
+        write(cmd, '(A,A,A)') 'curl -s "', trim(url), '"'
+
+        ! Try streaming first (if available), fall back to temp file
+        if (is_streaming_available()) then
+            ! Use direct streaming (no disk I/O)
+            success = stream_command_output(trim(cmd), content, exit_status)
+            if (success .and. exit_status == 0) then
+                ! Check for S3 error in response
+                if (index(content, '<Error>') > 0) then
+                    success = .false.
+                end if
+                return
+            end if
+        end if
+
+        ! Fallback to temp file method (for Windows or if streaming fails)
+        success = s3_get_object_fallback(key, content)
+
+    end function s3_get_object
+
+    !> Fallback implementation using temporary files.
+    !>
+    !> Used on platforms without popen support (Windows) or if streaming fails.
+    !>
+    !> @param[in] key The S3 object key
+    !> @param[out] content The downloaded content
+    !> @return .true. if successful, .false. otherwise
+    function s3_get_object_fallback(key, content) result(success)
+        character(len=*), intent(in) :: key
+        character(len=:), allocatable, intent(out) :: content
+        logical :: success
+        character(len=2048) :: url
+        character(len=4096) :: cmd
         character(len=256) :: tmpfile
         integer :: unit, ios, filesize
         character(len=1) :: byte
         integer :: i
 
         success = .false.
-        if (.not. initialized) return
 
         ! Build URL
         if (current_config%use_https) then
@@ -250,7 +302,7 @@ contains
         call execute_command_line(cmd)
 
         success = (ios == 0 .and. index(content, '<Error>') == 0)
-    end function s3_get_object
+    end function s3_get_object_fallback
 
     !> Upload an object to S3.
     !>

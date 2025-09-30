@@ -41,6 +41,7 @@ module s3_logger
     implicit none
     private
 
+    ! Public procedures
     public :: s3_set_log_level
     public :: s3_get_log_level
     public :: s3_log_error
@@ -50,20 +51,13 @@ module s3_logger
     public :: s3_log_trace
     public :: s3_init_logger
 
-    ! Log level constants
-    public :: S3_LOG_NONE
-    public :: S3_LOG_ERROR
-    public :: S3_LOG_WARN
-    public :: S3_LOG_INFO
-    public :: S3_LOG_DEBUG
-    public :: S3_LOG_TRACE
-
-    integer, parameter :: S3_LOG_NONE = 0
-    integer, parameter :: S3_LOG_ERROR = 1
-    integer, parameter :: S3_LOG_WARN = 2
-    integer, parameter :: S3_LOG_INFO = 3
-    integer, parameter :: S3_LOG_DEBUG = 4
-    integer, parameter :: S3_LOG_TRACE = 5
+    ! Log level constants (public)
+    integer, parameter, public :: S3_LOG_NONE = 0
+    integer, parameter, public :: S3_LOG_ERROR = 1
+    integer, parameter, public :: S3_LOG_WARN = 2
+    integer, parameter, public :: S3_LOG_INFO = 3
+    integer, parameter, public :: S3_LOG_DEBUG = 4
+    integer, parameter, public :: S3_LOG_TRACE = 5
 
     ! Current log level (default ERROR)
     integer, save :: current_log_level = S3_LOG_ERROR

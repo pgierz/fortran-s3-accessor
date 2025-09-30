@@ -104,51 +104,45 @@ PATH="test/scripts:$PATH" fpm test
 
 ## Performance Notice
 
-### Current Implementation (v1.0.0)
+### Current Implementation (v1.1.0)
 
-The library currently uses temporary files for S3 downloads:
+The library uses direct memory streaming via POSIX `popen()` on Linux/macOS/Unix systems:
 
 ```
-Network → /tmp/s3_get_*.tmp → Memory
+Network → Memory (POSIX systems)
+Network → /tmp → Memory (Windows fallback)
 ```
 
 **Performance Characteristics:**
 
-| File Size | Overhead | Impact |
-|-----------|----------|---------|
-| < 10 MB   | ~10-20ms | Negligible for most use cases |
-| 10-100 MB | ~100-500ms | Noticeable in batch operations |
-| 100 MB-1 GB | ~1-5s | 10-30% performance overhead |
-| > 1 GB | ~5-20s | Significant overhead + disk space usage |
+| Platform | Method | Overhead | Notes |
+|----------|--------|----------|-------|
+| Linux/macOS/Unix | Direct streaming | Minimal (~10ms) | Uses popen() C binding |
+| Windows | Temp file fallback | ~10-30% | Falls back to v1.0.0 method |
 
-### Recommendations for v1.0.0
+### Platform Support
 
-**Suitable for:**
-- Files < 100 MB (most scientific metadata, small datasets)
-- Interactive workflows (download, process, analyze)
-- Proof-of-concept and integration work
-- Public bucket access without authentication
+**Full Performance (Direct Streaming):**
+- Linux (all HPC clusters)
+- macOS
+- Unix-like systems with POSIX compliance
 
-**Consider limitations for:**
-- Large NetCDF files (> 100 MB)
-- Batch processing hundreds of files
-- HPC systems with strict `/tmp` quotas
-- Performance-critical production pipelines
+**Fallback Mode (Temporary Files):**
+- Windows systems
+- Non-POSIX platforms
 
-### Roadmap: v1.1.0 Performance Improvements
+The library automatically detects platform capabilities and uses the fastest method available. No configuration required.
 
-**Planned for v1.1.0 (Target: Q4 2025):**
+### Roadmap: v1.2.0 Future Enhancements
 
-1. **Direct memory streaming** - Eliminate disk I/O by streaming curl output directly to memory
-   - Implementation: POSIX `popen()` via C interoperability
-   - Expected improvement: 5-10x faster for large files
-   - No API changes required - drop-in performance upgrade
+**Planned for v1.2.0+:**
 
-2. **libcurl integration** (Optional, v1.2.0+) - For maximum performance:
+1. **libcurl integration** - For maximum performance and features:
    - Native libcurl via `iso_c_binding`
    - Proper AWS Signature v4 authentication
    - Progress callbacks and streaming APIs
    - Multipart upload support
+   - Windows native streaming support
 
 **Contributing:** See [issues tagged `performance`](https://github.com/pgierz/fortran-s3-accessor/labels/performance) to contribute to these improvements.
 
@@ -156,7 +150,7 @@ Network → /tmp/s3_get_*.tmp → Memory
 
 - **URL encoding**: Special characters in S3 keys are untested - use alphanumeric keys and underscores only
 - **Authentication**: Simplified credential checking (production AWS Signature v4 implementation planned for v1.2.0)
-- **Temporary files**: Downloads use `/tmp` - ensure adequate disk space for large files
+- **Windows streaming**: Temporary file fallback on Windows (native streaming planned for v1.2.0)
 - **Error messages**: Limited error diagnostics from curl (improved error handling planned)
 
 ## Use Cases

@@ -29,12 +29,14 @@ Brief description
 
 ## Key Features
 
+- **High-performance streaming**: Direct memory streaming via POSIX `popen()` eliminates disk I/O overhead
 - **Direct HTTP-based S3 operations**: GET, PUT, DELETE, and HEAD requests via curl
 - **Dual interface design**:
   - Low-level `s3_http` module for direct S3 operations
   - High-level `s3_io` module providing familiar Fortran I/O patterns (open/read/write/close)
 - **URI support**: Work with `s3://bucket/key` URIs for seamless cross-bucket operations
 - **Public bucket access**: Read from public S3 buckets without authentication
+- **Cross-platform compatibility**: Native streaming on Linux/macOS/Unix, automatic fallback on Windows
 - **Comprehensive testing**: Mock-based testing framework with 22+ test cases
 - **Zero dependencies**: Uses only standard Fortran 2008 and system curl
 - **Production ready**: Designed for integration with scientific computing workflows (FESOM, climate models, etc.)
@@ -42,7 +44,16 @@ Brief description
 Architecture
 ============
 
-The library follows a layered architecture with two main modules:
+The library follows a layered architecture with three core modules:
+
+## Streaming Module: `curl_stream`
+
+Provides C interoperability layer for high-performance streaming:
+
+- **`stream_command_output(command, output, exit_status)`**: Stream command output directly to memory via `popen()`
+- **`is_streaming_available()`**: Platform detection for streaming capability
+- Uses POSIX C bindings (`popen`, `fread`, `pclose`) for zero-copy streaming
+- Automatic fallback to temp file method on non-POSIX platforms (e.g., Windows)
 
 ## Core Module: `s3_http`
 
@@ -123,11 +134,24 @@ The library excels at reading from public S3 buckets commonly used in scientific
 - CMIP6 climate model archives
 - Genomics datasets (1000 Genomes, NIH)
 
+Performance
+===========
+
+## Direct Memory Streaming (v1.1.0+)
+
+The library uses POSIX `popen()` for high-performance streaming on supported platforms:
+
+- **Linux/macOS/Unix**: Network → Memory (direct streaming, minimal overhead)
+- **Windows**: Network → /tmp → Memory (automatic fallback)
+
+This eliminates disk I/O bottlenecks present in v1.0.0, providing production-grade performance for HPC and scientific computing workflows.
+
 Limitations
 ===========
 
 - **URL encoding**: Special characters in S3 keys are currently untested; use alphanumeric keys with underscores for safety
 - **Authentication**: Uses simplified credential checking; production write operations require AWS Signature v4 (planned)
+- **Windows streaming**: Uses temporary file fallback; native streaming planned for v1.2.0
 - **Binary data**: Current implementation optimized for text; binary support exists but is less tested
 - **Dependencies**: Requires system `curl` command to be available in PATH
 - **Parallel I/O**: No built-in support for concurrent multi-threaded access

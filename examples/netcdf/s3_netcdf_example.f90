@@ -1,13 +1,11 @@
 program s3_netcdf_example
     use s3_http
+    use s3_netcdf
     use netcdf
     implicit none
 
     type(s3_config) :: config
-    character(len=:), allocatable :: content
-    logical :: success
     integer :: ncid, status
-    character(len=*), parameter :: temp_file = "/tmp/esgf_climate_data.nc"
     character(len=*), parameter :: climate_uri = &
         "s3://esgf-world/CMIP6/CMIP/AWI/AWI-ESM-1-1-LR/piControl/r1i1p1f1/fx/areacella/gn/" // &
         "v20200212/areacella_fx_AWI-ESM-1-1-LR_piControl_r1i1p1f1_gn.nc"
@@ -27,47 +25,43 @@ program s3_netcdf_example
 
     print *, 'Reading NetCDF file from S3: ', climate_uri
     print *, ''
+    print *, 'Performance optimization:'
+    print *, '  Using: ', trim(get_optimal_temp_dir())
+    if (index(get_optimal_temp_dir(), '/dev/shm') > 0) then
+        print *, '  Mode: RAM disk (zero disk I/O!)'
+    else
+        print *, '  Mode: Standard temp directory'
+    end if
+    print *, ''
 
-    ! Download the NetCDF file from S3
-    success = s3_get_uri(climate_uri, content)
-    if (.not. success) then
-        print *, 'Error reading dataset: Failed to download from S3'
+    ! Open NetCDF file directly from S3 (transparent streaming!)
+    status = s3_nf90_open(climate_uri, NF90_NOWRITE, ncid)
+    if (status /= NF90_NOERR) then
+        print *, 'Error: Failed to open NetCDF file: ', nf90_strerror(status)
         stop 1
     end if
 
     print *, 'Dataset successfully opened!'
     print *, ''
 
-    ! Write content to temporary file for NetCDF processing
-    open(unit=10, file=temp_file, form='unformatted', access='stream', status='replace')
-    write(10) content
-    close(10)
-    status = nf90_open(temp_file, NF90_NOWRITE, ncid)
-    if (status /= NF90_NOERR) then
-        print *, 'Error: Failed to open NetCDF file: ', nf90_strerror(status)
-        stop 1
-    end if
-
     print *, 'Dataset representation:'
     call display_netcdf_info(ncid)
 
-    ! Close NetCDF file
-    status = nf90_close(ncid)
+    ! Close NetCDF file and auto-cleanup temp file
+    status = s3_nf90_close(ncid)
     if (status /= NF90_NOERR) then
         print *, 'Warning: Failed to close NetCDF file properly'
     end if
-
-    ! Clean up temporary file
-    open(unit=10, file=temp_file, status='old')
-    close(10, status='delete')
 
     print *, ''
     print *, 'Example completed successfully!'
     print *, ''
     print *, 'This demonstrates:'
-    print *, '  1. Downloading NetCDF files from S3 using s3:// URIs'
-    print *, '  2. Processing NetCDF metadata with fortran-netcdf'
-    print *, '  3. Integration with public scientific datasets'
+    print *, '  1. Direct NetCDF opening from S3 using s3_nf90_open()'
+    print *, '  2. Transparent streaming with automatic temp file management'
+    print *, '  3. Platform-optimized storage (/dev/shm on Linux, /tmp elsewhere)'
+    print *, '  4. Zero-copy S3 downloads (Network -> Memory via streaming)'
+    print *, '  5. Automatic cleanup via s3_nf90_close()'
 
 contains
 

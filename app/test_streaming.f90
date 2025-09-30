@@ -1,5 +1,6 @@
 program test_streaming
     use s3_http
+    use s3_logger
     use curl_stream
     use iso_c_binding
     implicit none
@@ -13,6 +14,11 @@ program test_streaming
     print *, '=========================================='
     print *, 'Streaming Performance Demonstration'
     print *, '=========================================='
+    print *
+
+    ! Enable DEBUG logging to see what's happening
+    call s3_set_log_level(S3_LOG_DEBUG)
+    print *, 'Debug logging enabled'
     print *
 
     ! Check if streaming is available on this platform

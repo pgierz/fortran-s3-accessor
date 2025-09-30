@@ -34,6 +34,7 @@
 !> @warning URL encoding of special characters in S3 keys is not currently supported.
 module s3_http
     use curl_stream, only: stream_command_output, is_streaming_available
+    use s3_logger
     implicit none
     private
 
@@ -157,8 +158,25 @@ contains
     !> ```
     subroutine s3_init(config)
         type(s3_config), intent(in) :: config
+        character(len=256) :: msg
+
+        ! Initialize logger from environment
+        call s3_init_logger()
+
         current_config = config
         initialized = .true.
+
+        call s3_log_info('S3 library initialized')
+        write(msg, '(A,A)') 'Bucket: ', trim(config%bucket)
+        call s3_log_debug(trim(msg))
+        write(msg, '(A,A)') 'Endpoint: ', trim(config%endpoint)
+        call s3_log_debug(trim(msg))
+        write(msg, '(A,A)') 'Region: ', trim(config%region)
+        call s3_log_debug(trim(msg))
+        write(msg, '(A,L1)') 'HTTPS: ', config%use_https
+        call s3_log_debug(trim(msg))
+        write(msg, '(A,L1)') 'Streaming available: ', is_streaming_available()
+        call s3_log_info(trim(msg))
     end subroutine s3_init
 
     !> Download an object from S3 and return its content.
@@ -195,9 +213,16 @@ contains
         character(len=2048) :: url
         character(len=4096) :: cmd
         integer :: exit_status
+        character(len=256) :: msg
 
         success = .false.
-        if (.not. initialized) return
+        if (.not. initialized) then
+            call s3_log_error('s3_get_object called before s3_init()')
+            return
+        end if
+
+        write(msg, '(A,A)') 'Getting object: ', trim(key)
+        call s3_log_info(trim(msg))
 
         ! Build URL
         if (current_config%use_https) then
@@ -212,23 +237,43 @@ contains
                 trim(key)
         end if
 
+        write(msg, '(A,A)') 'URL: ', trim(url)
+        call s3_log_debug(trim(msg))
+
         ! Build curl command
         write(cmd, '(A,A,A)') 'curl -s "', trim(url), '"'
+        write(msg, '(A,A)') 'Command: ', trim(cmd)
+        call s3_log_trace(trim(msg))
 
         ! Try streaming first (if available), fall back to temp file
         if (is_streaming_available()) then
+            call s3_log_debug('Attempting direct streaming')
             ! Use direct streaming (no disk I/O)
             success = stream_command_output(trim(cmd), content, exit_status)
             if (success .and. exit_status == 0) then
+                write(msg, '(A,I0,A)') 'Streaming successful, received ', len(content), ' bytes'
+                call s3_log_debug(trim(msg))
                 ! Check for S3 error in response
                 if (index(content, '<Error>') > 0) then
+                    call s3_log_error('S3 error detected in response')
+                    if (len(content) < 500) then
+                        call s3_log_debug('Response: ' // content)
+                    else
+                        call s3_log_debug('Response (first 500 chars): ' // content(1:500))
+                    end if
                     success = .false.
                 end if
                 return
+            else
+                write(msg, '(A,I0)') 'Streaming failed with exit status: ', exit_status
+                call s3_log_warn(trim(msg))
             end if
+        else
+            call s3_log_info('Streaming not available, using temp file method')
         end if
 
         ! Fallback to temp file method (for Windows or if streaming fails)
+        call s3_log_debug('Falling back to temp file method')
         success = s3_get_object_fallback(key, content)
 
     end function s3_get_object

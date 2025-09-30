@@ -7,6 +7,7 @@
 !> @warning Not portable to Windows.
 module curl_stream
     use iso_c_binding
+    use s3_logger
     implicit none
     private
 
@@ -110,23 +111,33 @@ contains
         integer(c_size_t) :: bytes_read
         character(len=:), allocatable :: temp_output
         integer(c_int) :: close_status
+        integer :: total_bytes
+        character(len=256) :: msg
 
         success = .false.
         exit_status = -1
+        total_bytes = 0
 
         ! Check if streaming is available
         if (.not. is_streaming_available()) then
+            call s3_log_debug('Streaming not available on this platform')
             return
         end if
+
+        call s3_log_trace('Streaming command: ' // trim(command))
 
         ! Convert Fortran string to C string (null-terminated)
         c_command = trim(command) // C_NULL_CHAR
 
         ! Open pipe for reading
+        call s3_log_debug('Opening pipe with popen()')
         pipe = c_popen(c_command, 'r' // C_NULL_CHAR)
         if (.not. c_associated(pipe)) then
+            call s3_log_error('popen() failed - pipe not associated')
             return
         end if
+
+        call s3_log_debug('Pipe opened successfully, starting to read')
 
         ! Initialize output
         output = ''
@@ -138,6 +149,10 @@ contains
 
             ! Check if we've reached end of stream or error
             if (bytes_read <= 0) exit
+
+            total_bytes = total_bytes + int(bytes_read)
+            write(msg, '(A,I0,A,I0,A)') 'Read ', int(bytes_read), ' bytes (total: ', total_bytes, ')'
+            call s3_log_trace(trim(msg))
 
             ! Append chunk to output
             if (allocated(temp_output)) deallocate(temp_output)
@@ -153,8 +168,13 @@ contains
             call move_alloc(temp_output, output)
         end do
 
+        write(msg, '(A,I0,A)') 'Finished reading ', total_bytes, ' total bytes'
+        call s3_log_debug(trim(msg))
+
         ! Close pipe and get exit status
         close_status = c_pclose(pipe)
+        write(msg, '(A,I0)') 'pclose() returned: ', close_status
+        call s3_log_debug(trim(msg))
 
         ! pclose returns exit status in platform-dependent way
         ! On most systems, need to check using WEXITSTATUS-like logic
@@ -162,10 +182,14 @@ contains
         if (close_status == 0) then
             exit_status = 0
             success = .true.
+            call s3_log_debug('Stream command completed successfully')
         else
             ! Command failed, but we may still have partial output
             exit_status = close_status
             success = .false.
+            write(msg, '(A,I0,A,I0,A)') 'Stream command failed with exit status ', &
+                close_status, ' (bytes read: ', total_bytes, ')'
+            call s3_log_error(trim(msg))
         end if
 
     end function stream_command_output

@@ -1,3 +1,0 @@
-s3fs
-h5netcdf
-xarray

@@ -91,6 +91,7 @@ jobs:
         shell: bash
         run: |
           cmake -B build \
+                ${{ runner.os == 'Windows' && '-G "MinGW Makefiles"' || '' }} \
                 -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} \
                 -DCMAKE_Fortran_COMPILER=gfortran
 

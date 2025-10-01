@@ -133,18 +133,43 @@ Network → /tmp → Memory (Windows fallback)
 
 The library automatically detects platform capabilities and uses the fastest method available. No configuration required.
 
-### Roadmap: v1.2.0 Future Enhancements
+### Roadmap: v1.2.0 - Christmas Release 🎄
 
-**Planned for v1.2.0+:**
+**Target: December 25, 2025** | [Milestone](https://github.com/pgierz/fortran-s3-accessor/milestone/1) | [All Issues](https://github.com/pgierz/fortran-s3-accessor/issues?q=is%3Aissue+milestone%3A%22v1.2.0+-+Christmas+Release+%F0%9F%8E%84%22)
 
-1. **libcurl integration** - For maximum performance and features:
-   - Native libcurl via `iso_c_binding`
-   - Proper AWS Signature v4 authentication
-   - Progress callbacks and streaming APIs
-   - Multipart upload support
-   - Windows native streaming support
+Major enhancements planned:
 
-**Contributing:** See [issues tagged `performance`](https://github.com/pgierz/fortran-s3-accessor/labels/performance) to contribute to these improvements.
+1. **[libcurl integration](https://github.com/pgierz/fortran-s3-accessor/issues/9)** (#9) - Native performance and Windows support
+   - Direct C API via `iso_c_binding`
+   - Cross-platform streaming (including Windows!)
+   - Better error diagnostics
+   - ~50% performance improvement over v1.1.0
+
+2. **[AWS Signature v4 authentication](https://github.com/pgierz/fortran-s3-accessor/issues/10)** (#10) - Production-grade security
+   - Full AWS authentication protocol
+   - Private bucket access
+   - Temporary credentials (STS) support
+   - All AWS regions
+
+3. **[Progress callbacks](https://github.com/pgierz/fortran-s3-accessor/issues/11)** (#11) - Real-time transfer monitoring
+   - Download/upload progress reporting
+   - Speed metrics and ETA
+   - Cancellation support
+   - Easy callback interface
+
+4. **[Multipart upload](https://github.com/pgierz/fortran-s3-accessor/issues/12)** (#12) - Large file support
+   - Upload files >5GB (up to 5TB!)
+   - Chunked uploads with resume capability
+   - Optional parallel chunk uploads
+   - Per-chunk progress tracking
+
+5. **[Enhanced error diagnostics](https://github.com/pgierz/fortran-s3-accessor/issues/13)** (#13) - Better troubleshooting
+   - Clear, actionable error messages
+   - Categorized errors (network, auth, S3)
+   - AWS error code interpretation
+   - Recovery suggestions
+
+**Contributing:** See [v1.2.0 milestone](https://github.com/pgierz/fortran-s3-accessor/milestone/1) to contribute to these improvements!
 
 ## Current Limitations
 

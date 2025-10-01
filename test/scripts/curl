@@ -103,6 +103,9 @@ def main():
     if parsed["output_file"]:
         output_path = Path(parsed["output_file"])
 
+        # Create parent directory if it doesn't exist (handles /tmp on Windows)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
         # Special test cases
         if key == "network_failure_test.txt":
             sys.exit(7)  # Connection failure

@@ -19,6 +19,7 @@ jobs:
   test-fpm:
     name: Test with FPM (${{ matrix.os }}, gcc-${{ matrix.gcc-version }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -86,6 +87,7 @@ jobs:
   test-cmake:
     name: Test with CMake (${{ matrix.os }}, ${{ matrix.build-type }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:

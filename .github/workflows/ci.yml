@@ -55,13 +55,15 @@ jobs:
         if: matrix.os == 'macos-15-intel'
         run: |
           # Pre-built FPM expects Homebrew gcc@12 paths, create symlinks to actual location
-          echo "Searching for gcc@12 libraries specifically..."
-          ACTUAL_LIB=$(find /opt/homebrew -path "*/gcc@12/*/libgfortran.5.dylib" 2>/dev/null | head -1 | xargs dirname)
+          # Intel Macs use /usr/local, ARM uses /opt/homebrew
+          echo "Searching for gcc@12 libraries..."
+          ACTUAL_LIB=$(find /usr/local -path "*/gcc@12/*/libgfortran.5.dylib" 2>/dev/null | head -1 | xargs dirname)
 
           if [ -z "$ACTUAL_LIB" ]; then
-            echo "ERROR: Could not find gcc@12 libgfortran.5.dylib!"
-            echo "Searching all Homebrew gcc installations:"
-            find /opt/homebrew -name "libgfortran.5.dylib" 2>/dev/null || true
+            echo "gcc@12 not found, searching for any gcc with libgfortran.5.dylib..."
+            find /usr/local -name "libgfortran.5.dylib" 2>/dev/null | head -5 || true
+            echo "Trying to find what gfortran-12 links to:"
+            otool -L /usr/local/bin/gfortran 2>/dev/null | grep libgfortran || true
             exit 1
           fi
 

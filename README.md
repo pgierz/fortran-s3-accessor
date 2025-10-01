@@ -171,6 +171,44 @@ This library is designed to enable cloud-friendly ocean modeling workflows:
 - **Small to medium datasets** - Regional model outputs, analysis results
 - **Prototype workflows** - Testing cloud integration before production deployment
 
+## NetCDF Integration
+
+The library integrates seamlessly with NetCDF-Fortran for reading climate data directly from S3:
+
+```fortran
+program netcdf_s3_example
+    use s3_http
+    use netcdf
+    implicit none
+
+    type(s3_config) :: config
+    character(len=:), allocatable :: content
+    integer :: ncid, status
+
+    ! Download NetCDF file from S3 to memory
+    call s3_init(config)
+    call s3_get_object('path/to/data.nc', content)
+
+    ! Write to temp file (prefer /dev/shm RAM disk on Linux)
+    open(unit=10, file='/dev/shm/temp.nc', form='unformatted', access='stream')
+    write(10) content
+    close(10)
+
+    ! Open with NetCDF library
+    status = nf90_open('/dev/shm/temp.nc', NF90_NOWRITE, ncid)
+    ! ... use NetCDF normally ...
+    status = nf90_close(ncid)
+end program
+```
+
+**See:** `examples/netcdf_minimal.f90` for a complete working example
+
+**Requirements:** NetCDF-Fortran must be installed separately
+- Ubuntu/Debian: `sudo apt-get install libnetcdf-dev libnetcdff-dev`
+- Compile with: `gfortran ... $(nf-config --fflags) $(nf-config --flibs)`
+
+**For full-featured integration** with transparent S3 URIs and automatic cleanup, see the separate [`fortran-s3-netcdf`](https://github.com/pgierz/fortran-s3-netcdf) package (coming soon).
+
 ## Installation
 
 ### From FPM Registry

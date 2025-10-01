@@ -157,3 +157,42 @@ jobs:
             echo "Warning: Found TODO/FIXME comments"
             exit 0
           fi
+
+  netcdf-integration:
+    name: NetCDF Integration Example (optional)
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Don't block PRs if this fails
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Fortran
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: gcc
+          version: 12
+
+      - name: Install NetCDF
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnetcdf-dev libnetcdff-dev
+
+      - name: Verify NetCDF installation
+        run: |
+          nf-config --version
+          pkg-config --modversion netcdf
+
+      - name: Compile NetCDF integration example
+        run: |
+          gfortran -o netcdf_example \
+            src/s3_logger.f90 \
+            src/curl_stream.f90 \
+            src/s3_http.f90 \
+            examples/netcdf_minimal.f90 \
+            $(nf-config --fflags) $(nf-config --flibs)
+
+      - name: Run NetCDF example
+        env:
+          S3_LOG_LEVEL: INFO
+        run: |
+          ./netcdf_example

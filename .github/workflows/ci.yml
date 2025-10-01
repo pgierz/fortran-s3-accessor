@@ -50,12 +50,16 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup library path for macOS FPM
+      - name: Setup library paths for macOS FPM
         if: runner.os == 'macOS'
         run: |
+          # Pre-built FPM expects Homebrew gcc@12 paths, create symlinks to actual location
           GFORTRAN_PATH=$(which gfortran)
-          LIB_PATH=$(dirname $(dirname $GFORTRAN_PATH))/lib/gcc/$(gfortran -dumpversion)
-          echo "DYLD_LIBRARY_PATH=${LIB_PATH}:${DYLD_LIBRARY_PATH:-}" >> $GITHUB_ENV
+          ACTUAL_LIB=$(dirname $(dirname $GFORTRAN_PATH))/lib/gcc/12
+          sudo mkdir -p /usr/local/opt/gcc@12/lib/gcc/12
+          sudo ln -sf ${ACTUAL_LIB}/libgfortran.5.dylib /usr/local/opt/gcc@12/lib/gcc/12/libgfortran.5.dylib
+          sudo ln -sf ${ACTUAL_LIB}/libquadmath.0.dylib /usr/local/opt/gcc@12/lib/gcc/12/libquadmath.0.dylib
+          sudo ln -sf ${ACTUAL_LIB}/libgcc_s.1.1.dylib /usr/local/opt/gcc@12/lib/gcc/12/libgcc_s.1.1.dylib || true
 
       - name: Build with FPM
         run: fpm build --verbose

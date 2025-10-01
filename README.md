@@ -238,10 +238,21 @@ end program
 
 ### From FPM Registry
 
-```bash
-# Add to your fpm.toml:
+> **Note:** FPM registry integration is coming soon! See [#14](https://github.com/pgierz/fortran-s3-accessor/issues/14) for progress.
+> For now, use git-based dependencies (see below).
+
+```toml
+# Future: When published to FPM registry
 [dependencies]
 fortran-s3-accessor = "1.1.0"
+```
+
+### From Git (Recommended)
+
+```toml
+# Add to your fpm.toml:
+[dependencies]
+fortran-s3-accessor = { git = "https://github.com/pgierz/fortran-s3-accessor.git", tag = "v1.1.0" }
 ```
 
 ### From Source

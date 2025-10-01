@@ -28,6 +28,8 @@ jobs:
           # Reduce matrix size - test key combinations only
           - os: macos-latest
             gcc-version: 11
+          - os: macos-latest
+            gcc-version: 13  # Pre-built FPM binary requires gcc@12
           - os: windows-latest
             gcc-version: 11
 

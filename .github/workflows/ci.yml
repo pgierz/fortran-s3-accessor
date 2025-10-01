@@ -51,16 +51,11 @@ jobs:
       - name: Build with FPM
         run: fpm build --verbose
 
-      - name: Run tests with FPM (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Run tests with FPM
+        shell: bash
         run: |
           chmod +x test/scripts/curl
           PATH="${PWD}/test/scripts:$PATH" fpm test --verbose
-
-      - name: Run tests with FPM (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: PATH="${PWD}/test/scripts:$PATH" fpm test --verbose
 
       - name: Run example with FPM
         run: fpm run --verbose

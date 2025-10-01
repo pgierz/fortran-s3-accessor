@@ -1,24 +1,25 @@
-# Mock Curl Scripts for Testing
+# Mock Curl Script for Testing
 
-This directory contains platform-specific mock curl implementations for testing S3 operations without requiring a real S3 connection.
+This directory contains a Python-based mock curl script for testing S3 operations without requiring a real S3 connection.
 
-## Platform Support
+## Cross-Platform Support
 
-### Linux / macOS / Unix
-**Script:** `curl` (bash script)
-**Usage:**
+**Script:** `curl` (Python script with shebang)
+
+The mock curl is implemented in Python for maximum portability across all platforms (Linux, macOS, Windows).
+
+**Requirements:**
+- Python 3.6+ (pre-installed on all GitHub Actions runners)
+- Uses only standard library (pathlib, shutil, sys)
+- No external dependencies
+
+**Usage (all platforms):**
 ```bash
-chmod +x test/scripts/curl
+chmod +x test/scripts/curl  # Linux/macOS only
 PATH="${PWD}/test/scripts:$PATH" fpm test
 ```
 
-### Windows
-**Script:** `curl.bat` (batch file)
-**Usage:**
-```cmd
-set PATH=%CD%\test\scripts;%PATH%
-fpm test
-```
+On Windows, Python scripts can be executed directly when the Python interpreter is in PATH.
 
 ## How It Works
 
@@ -51,20 +52,25 @@ To add new mock responses:
 
 For HEAD requests, create a file named `head_<key>` with appropriate HTTP headers.
 
-## Platform Differences
+## Implementation Details
 
-The bash and batch scripts provide identical functionality:
-- Same response file handling
-- Same special test cases
-- Same exit codes
+The Python script uses:
+- `pathlib.Path` for cross-platform path handling
+- `shutil.copy` for file operations
+- `sys.exit()` for exit codes matching real curl behavior
 
-The batch file uses Windows-specific commands (`copy`, `findstr`, `%CD%`) but maintains the same behavior as the bash script.
+This ensures identical behavior across all platforms without platform-specific code.
 
 ## CI Integration
 
-The GitHub Actions CI workflow automatically uses the correct script based on the runner OS:
+The GitHub Actions CI workflow uses a single unified test command for all platforms:
 
-- **Linux/macOS**: Uses bash script with `chmod +x`
-- **Windows**: Uses batch file with `set PATH`
+```yaml
+- name: Run tests with FPM
+  shell: bash
+  run: |
+    chmod +x test/scripts/curl
+    PATH="${PWD}/test/scripts:$PATH" fpm test --verbose
+```
 
 See `.github/workflows/ci.yml` for implementation details.

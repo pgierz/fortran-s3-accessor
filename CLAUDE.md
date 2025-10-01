@@ -98,18 +98,13 @@ The library includes comprehensive testing infrastructure:
 
 ### Running Tests
 
-**Linux / macOS:**
+**All Platforms (Linux / macOS / Windows):**
 ```bash
-# Run tests with mock curl (required for S3 operation testing)
+# Run tests with Python-based mock curl (required for S3 operation testing)
 PATH="test/scripts:$PATH" fpm test
 ```
 
-**Windows (cmd):**
-```cmd
-# Use Windows batch script
-set PATH=%CD%\test\scripts;%PATH%
-fpm test
-```
+The mock curl is implemented in Python for cross-platform compatibility.
 
 **CI Testing:**
 The GitHub Actions CI automatically tests on:

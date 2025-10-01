@@ -55,20 +55,24 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           # Pre-built FPM expects Homebrew gcc@12 paths, create symlinks to actual location
-          GFORTRAN_PATH=$(which gfortran)
-          echo "gfortran path: $GFORTRAN_PATH"
-          GFORTRAN_DIR=$(dirname $(dirname $GFORTRAN_PATH))
-          echo "gfortran dir: $GFORTRAN_DIR"
-          echo "Contents of $GFORTRAN_DIR/lib:"
-          ls -la $GFORTRAN_DIR/lib/ || true
-          echo "Looking for gcc subdirs:"
-          find $GFORTRAN_DIR/lib -name "libgfortran*.dylib" || true
-          ACTUAL_LIB=$(find $GFORTRAN_DIR/lib -name "libgfortran.5.dylib" -exec dirname {} \; | head -1)
-          echo "Found library at: $ACTUAL_LIB"
+          echo "Searching entire system for libgfortran.5.dylib..."
+          ACTUAL_LIB=$(find /usr /opt /Library 2>/dev/null | grep -E 'libgfortran\.5\.dylib$' | head -1 | xargs dirname)
+
+          if [ -z "$ACTUAL_LIB" ]; then
+            echo "ERROR: Could not find libgfortran.5.dylib anywhere!"
+            echo "Trying otool to see where gfortran links:"
+            otool -L $(which gfortran) || true
+            exit 1
+          fi
+
+          echo "Found library directory at: $ACTUAL_LIB"
+          ls -la "$ACTUAL_LIB"
+
           sudo mkdir -p /usr/local/opt/gcc@12/lib/gcc/12
           sudo ln -sf ${ACTUAL_LIB}/libgfortran.5.dylib /usr/local/opt/gcc@12/lib/gcc/12/libgfortran.5.dylib
           sudo ln -sf ${ACTUAL_LIB}/libquadmath.0.dylib /usr/local/opt/gcc@12/lib/gcc/12/libquadmath.0.dylib
           sudo ln -sf ${ACTUAL_LIB}/libgcc_s.1.1.dylib /usr/local/opt/gcc@12/lib/gcc/12/libgcc_s.1.1.dylib || true
+
           echo "Created symlinks:"
           ls -la /usr/local/opt/gcc@12/lib/gcc/12/
 

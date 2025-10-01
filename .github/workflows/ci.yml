@@ -54,29 +54,33 @@ jobs:
       - name: Setup library paths for macOS FPM (Intel)
         if: matrix.os == 'macos-15-intel'
         run: |
-          # Pre-built FPM expects Homebrew gcc@12 paths, create symlinks to actual location
+          # Pre-built FPM expects Homebrew gcc@12 paths
+          # Check if the expected path already exists (Homebrew creates /usr/local/opt/gcc@12 symlink)
+          EXPECTED_PATH="/usr/local/opt/gcc@12/lib/gcc/12/libgfortran.5.dylib"
+
+          if [ -f "$EXPECTED_PATH" ]; then
+            echo "✓ Library path already exists: $EXPECTED_PATH"
+            ls -la /usr/local/opt/gcc@12/lib/gcc/12/ | head -10
+            exit 0
+          fi
+
+          echo "Library path not found, creating symlinks..."
+
           # Intel Macs use /usr/local, ARM uses /opt/homebrew
-          echo "Searching for gcc@12 libraries..."
           ACTUAL_LIB=$(find /usr/local -path "*/gcc@12/*/libgfortran.5.dylib" 2>/dev/null | head -1 | xargs dirname)
 
           if [ -z "$ACTUAL_LIB" ]; then
-            echo "gcc@12 not found, searching for any gcc with libgfortran.5.dylib..."
-            find /usr/local -name "libgfortran.5.dylib" 2>/dev/null | head -5 || true
-            echo "Trying to find what gfortran-12 links to:"
-            otool -L /usr/local/bin/gfortran 2>/dev/null | grep libgfortran || true
+            echo "ERROR: gcc@12 libraries not found"
             exit 1
           fi
 
-          echo "Found gcc@12 library directory at: $ACTUAL_LIB"
-          ls -la "$ACTUAL_LIB"
+          echo "Found gcc@12 at: $ACTUAL_LIB"
 
-          sudo mkdir -p /usr/local/opt/gcc@12/lib/gcc/12
-          sudo ln -sf ${ACTUAL_LIB}/libgfortran.5.dylib /usr/local/opt/gcc@12/lib/gcc/12/libgfortran.5.dylib
-          sudo ln -sf ${ACTUAL_LIB}/libquadmath.0.dylib /usr/local/opt/gcc@12/lib/gcc/12/libquadmath.0.dylib
-          sudo ln -sf ${ACTUAL_LIB}/libgcc_s.1.1.dylib /usr/local/opt/gcc@12/lib/gcc/12/libgcc_s.1.1.dylib || true
-
-          echo "Created symlinks:"
-          ls -la /usr/local/opt/gcc@12/lib/gcc/12/
+          # Create symlink at /usr/local/opt level if it doesn't exist
+          if [ ! -e /usr/local/opt/gcc@12 ]; then
+            sudo ln -sf /usr/local/Cellar/gcc@12/12.4.0 /usr/local/opt/gcc@12
+            echo "Created /usr/local/opt/gcc@12 symlink"
+          fi
 
       - name: Build with FPM
         run: fpm build --verbose

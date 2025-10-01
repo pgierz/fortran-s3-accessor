@@ -59,10 +59,8 @@ jobs:
 
       - name: Run tests with FPM (Windows)
         if: runner.os == 'Windows'
-        shell: cmd
-        run: |
-          set PATH=%CD%\test\scripts;%PATH%
-          fpm test --verbose
+        shell: bash
+        run: PATH="${PWD}/test/scripts:$PATH" fpm test --verbose
 
       - name: Run example with FPM
         run: fpm run --verbose
@@ -95,6 +93,7 @@ jobs:
           version: 12
 
       - name: Configure CMake
+        shell: bash
         run: |
           cmake -B build \
                 -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} \

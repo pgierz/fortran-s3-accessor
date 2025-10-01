@@ -55,11 +55,21 @@ jobs:
         run: |
           # Pre-built FPM expects Homebrew gcc@12 paths, create symlinks to actual location
           GFORTRAN_PATH=$(which gfortran)
-          ACTUAL_LIB=$(dirname $(dirname $GFORTRAN_PATH))/lib/gcc/12
+          echo "gfortran path: $GFORTRAN_PATH"
+          GFORTRAN_DIR=$(dirname $(dirname $GFORTRAN_PATH))
+          echo "gfortran dir: $GFORTRAN_DIR"
+          echo "Contents of $GFORTRAN_DIR/lib:"
+          ls -la $GFORTRAN_DIR/lib/ || true
+          echo "Looking for gcc subdirs:"
+          find $GFORTRAN_DIR/lib -name "libgfortran*.dylib" || true
+          ACTUAL_LIB=$(find $GFORTRAN_DIR/lib -name "libgfortran.5.dylib" -exec dirname {} \; | head -1)
+          echo "Found library at: $ACTUAL_LIB"
           sudo mkdir -p /usr/local/opt/gcc@12/lib/gcc/12
           sudo ln -sf ${ACTUAL_LIB}/libgfortran.5.dylib /usr/local/opt/gcc@12/lib/gcc/12/libgfortran.5.dylib
           sudo ln -sf ${ACTUAL_LIB}/libquadmath.0.dylib /usr/local/opt/gcc@12/lib/gcc/12/libquadmath.0.dylib
           sudo ln -sf ${ACTUAL_LIB}/libgcc_s.1.1.dylib /usr/local/opt/gcc@12/lib/gcc/12/libgcc_s.1.1.dylib || true
+          echo "Created symlinks:"
+          ls -la /usr/local/opt/gcc@12/lib/gcc/12/
 
       - name: Build with FPM
         run: fpm build --verbose

@@ -48,6 +48,13 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Setup library path for macOS FPM
+        if: runner.os == 'macOS'
+        run: |
+          GFORTRAN_PATH=$(which gfortran)
+          LIB_PATH=$(dirname $(dirname $GFORTRAN_PATH))/lib/gcc/$(gfortran -dumpversion)
+          echo "DYLD_LIBRARY_PATH=${LIB_PATH}:${DYLD_LIBRARY_PATH:-}" >> $GITHUB_ENV
+
       - name: Build with FPM
         run: fpm build --verbose
 

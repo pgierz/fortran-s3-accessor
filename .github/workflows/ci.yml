@@ -17,13 +17,19 @@ env:
 
 jobs:
   test-fpm:
-    name: Test with FPM
+    name: Test with FPM (${{ matrix.os }}, gcc-${{ matrix.gcc-version }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         gcc-version: [11, 12, 13]
+        exclude:
+          # Reduce matrix size - test key combinations only
+          - os: macos-latest
+            gcc-version: 11
+          - os: windows-latest
+            gcc-version: 11
 
     steps:
       - name: Checkout code
@@ -45,22 +51,36 @@ jobs:
       - name: Build with FPM
         run: fpm build --verbose
 
-      - name: Run tests with FPM
+      - name: Run tests with FPM (Linux/macOS)
+        if: runner.os != 'Windows'
         run: |
           chmod +x test/scripts/curl
           PATH="${PWD}/test/scripts:$PATH" fpm test --verbose
+
+      - name: Run tests with FPM (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          set PATH=%CD%\test\scripts;%PATH%
+          fpm test --verbose
 
       - name: Run example with FPM
         run: fpm run --verbose
 
   test-cmake:
-    name: Test with CMake
+    name: Test with CMake (${{ matrix.os }}, ${{ matrix.build-type }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         build-type: [Debug, Release]
+        exclude:
+          # Reduce matrix - test Release on all, Debug on Linux only
+          - os: macos-latest
+            build-type: Debug
+          - os: windows-latest
+            build-type: Debug
 
     steps:
       - name: Checkout code

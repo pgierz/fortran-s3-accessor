@@ -4,9 +4,11 @@ This directory contains a Python-based mock curl script for testing S3 operation
 
 ## Cross-Platform Support
 
-**Script:** `curl` (Python script with shebang)
+**Scripts:**
+- `curl` (Python script with shebang) - Used on Linux/macOS
+- `curl.bat` (Windows batch wrapper) - Calls Python script on Windows
 
-The mock curl is implemented in Python for maximum portability across all platforms (Linux, macOS, Windows).
+The mock curl is implemented in Python for maximum portability. All logic is in the Python script; the Windows `.bat` file is just a 2-line wrapper that calls it.
 
 **Requirements:**
 - Python 3.6+ (pre-installed on all GitHub Actions runners)
@@ -19,7 +21,9 @@ chmod +x test/scripts/curl  # Linux/macOS only
 PATH="${PWD}/test/scripts:$PATH" fpm test
 ```
 
-On Windows, Python scripts can be executed directly when the Python interpreter is in PATH.
+**How it works:**
+- **Linux/macOS:** Shell finds `curl` (Python script), executes via shebang
+- **Windows:** Shell finds `curl.bat` first (due to extension priority), which calls Python script
 
 ## How It Works
 

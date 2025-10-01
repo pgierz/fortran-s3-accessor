@@ -60,27 +60,33 @@ jobs:
 
           if [ -f "$EXPECTED_PATH" ]; then
             echo "✓ Library path already exists: $EXPECTED_PATH"
-            ls -la /usr/local/opt/gcc@12/lib/gcc/12/ | head -10
-            exit 0
+          else
+            echo "Library path not found, creating symlinks..."
+            # Intel Macs use /usr/local, ARM uses /opt/homebrew
+            ACTUAL_LIB=$(find /usr/local -path "*/gcc@12/*/libgfortran.5.dylib" 2>/dev/null | head -1 | xargs dirname)
+
+            if [ -z "$ACTUAL_LIB" ]; then
+              echo "ERROR: gcc@12 libraries not found"
+              exit 1
+            fi
+
+            echo "Found gcc@12 at: $ACTUAL_LIB"
+
+            # Create symlink at /usr/local/opt level if it doesn't exist
+            if [ ! -e /usr/local/opt/gcc@12 ]; then
+              sudo ln -sf /usr/local/Cellar/gcc@12/12.4.0 /usr/local/opt/gcc@12
+              echo "Created /usr/local/opt/gcc@12 symlink"
+            fi
           fi
 
-          echo "Library path not found, creating symlinks..."
+          # Test gfortran directly
+          echo "Testing gfortran:"
+          which gfortran
+          gfortran --version || echo "ERROR: gfortran --version failed"
 
-          # Intel Macs use /usr/local, ARM uses /opt/homebrew
-          ACTUAL_LIB=$(find /usr/local -path "*/gcc@12/*/libgfortran.5.dylib" 2>/dev/null | head -1 | xargs dirname)
-
-          if [ -z "$ACTUAL_LIB" ]; then
-            echo "ERROR: gcc@12 libraries not found"
-            exit 1
-          fi
-
-          echo "Found gcc@12 at: $ACTUAL_LIB"
-
-          # Create symlink at /usr/local/opt level if it doesn't exist
-          if [ ! -e /usr/local/opt/gcc@12 ]; then
-            sudo ln -sf /usr/local/Cellar/gcc@12/12.4.0 /usr/local/opt/gcc@12
-            echo "Created /usr/local/opt/gcc@12 symlink"
-          fi
+          # Test simple compilation
+          echo "program test; end program test" > /tmp/test.f90
+          gfortran -c /tmp/test.f90 -o /tmp/test.o && echo "✓ gfortran test compilation successful" || echo "ERROR: gfortran test compilation failed"
 
       - name: Build with FPM
         run: fpm build --verbose

@@ -216,7 +216,7 @@ end program
 ```bash
 # Add to your fpm.toml:
 [dependencies]
-fortran-s3-accessor = "1.0.0"
+fortran-s3-accessor = "1.1.0"
 ```
 
 ### From Source

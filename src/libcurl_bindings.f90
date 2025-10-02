@@ -52,16 +52,6 @@ module libcurl_bindings
             type(c_ptr) :: curl_easy_init
         end function curl_easy_init
 
-        !> Set options for curl session
-        function curl_easy_setopt(handle, option, parameter) &
-            bind(C, name="curl_easy_setopt")
-            import :: c_ptr, c_int
-            type(c_ptr), value :: handle
-            integer(c_int), value :: option
-            type(*) :: parameter
-            integer(c_int) :: curl_easy_setopt
-        end function curl_easy_setopt
-
         !> Perform the curl operation
         function curl_easy_perform(handle) bind(C, name="curl_easy_perform")
             import :: c_ptr, c_int
@@ -83,7 +73,91 @@ module libcurl_bindings
         end function curl_easy_strerror
     end interface
 
+    !> Generic interface for curl_easy_setopt with different parameter types
+    interface curl_easy_setopt
+        module procedure curl_setopt_ptr
+        module procedure curl_setopt_funptr
+        module procedure curl_setopt_int
+        module procedure curl_setopt_string
+    end interface curl_easy_setopt
+
 contains
+
+    !> Set curl option with c_ptr parameter.
+    function curl_setopt_ptr(handle, option, parameter) result(res)
+        type(c_ptr), value :: handle
+        integer(c_int), value :: option
+        type(c_ptr), value :: parameter
+        integer(c_int) :: res
+        interface
+            function curl_easy_setopt_c(handle, option, parameter) &
+                bind(C, name="curl_easy_setopt")
+                import :: c_ptr, c_int
+                type(c_ptr), value :: handle
+                integer(c_int), value :: option
+                type(c_ptr), value :: parameter
+                integer(c_int) :: curl_easy_setopt_c
+            end function curl_easy_setopt_c
+        end interface
+        res = curl_easy_setopt_c(handle, option, parameter)
+    end function curl_setopt_ptr
+
+    !> Set curl option with c_funptr parameter (function pointer).
+    function curl_setopt_funptr(handle, option, parameter) result(res)
+        type(c_ptr), value :: handle
+        integer(c_int), value :: option
+        type(c_funptr), value :: parameter
+        integer(c_int) :: res
+        interface
+            function curl_easy_setopt_c(handle, option, parameter) &
+                bind(C, name="curl_easy_setopt")
+                import :: c_ptr, c_int, c_funptr
+                type(c_ptr), value :: handle
+                integer(c_int), value :: option
+                type(c_funptr), value :: parameter
+                integer(c_int) :: curl_easy_setopt_c
+            end function curl_easy_setopt_c
+        end interface
+        res = curl_easy_setopt_c(handle, option, parameter)
+    end function curl_setopt_funptr
+
+    !> Set curl option with integer parameter.
+    function curl_setopt_int(handle, option, parameter) result(res)
+        type(c_ptr), value :: handle
+        integer(c_int), value :: option
+        integer(c_int), value :: parameter
+        integer(c_int) :: res
+        interface
+            function curl_easy_setopt_c(handle, option, parameter) &
+                bind(C, name="curl_easy_setopt")
+                import :: c_ptr, c_int
+                type(c_ptr), value :: handle
+                integer(c_int), value :: option
+                integer(c_int), value :: parameter
+                integer(c_int) :: curl_easy_setopt_c
+            end function curl_easy_setopt_c
+        end interface
+        res = curl_easy_setopt_c(handle, option, parameter)
+    end function curl_setopt_int
+
+    !> Set curl option with string parameter.
+    function curl_setopt_string(handle, option, parameter) result(res)
+        type(c_ptr), value :: handle
+        integer(c_int), value :: option
+        character(len=*, kind=c_char), intent(in) :: parameter
+        integer(c_int) :: res
+        interface
+            function curl_easy_setopt_c(handle, option, parameter) &
+                bind(C, name="curl_easy_setopt")
+                import :: c_ptr, c_int, c_char
+                type(c_ptr), value :: handle
+                integer(c_int), value :: option
+                character(kind=c_char), dimension(*) :: parameter
+                integer(c_int) :: curl_easy_setopt_c
+            end function curl_easy_setopt_c
+        end interface
+        res = curl_easy_setopt_c(handle, option, parameter)
+    end function curl_setopt_string
 
     !> Check if libcurl is available on this system.
     !>

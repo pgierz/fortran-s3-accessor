@@ -28,18 +28,22 @@ else()
   set(HAVE_LIBCURL FALSE)
 endif()
 
-# Source files - direct implementation
+# Source files - direct implementation (order matters for module dependencies)
 set(LIB_SOURCES
   src/s3_logger.f90
   src/curl_stream.f90
-  src/s3_http.f90
-  src/s3_io.f90
 )
 
-# Add libcurl bindings if available
+# Add libcurl bindings if available (must come before s3_http)
 if(HAVE_LIBCURL)
   list(APPEND LIB_SOURCES src/libcurl_bindings.f90)
 endif()
+
+# Continue with remaining sources
+list(APPEND LIB_SOURCES
+  src/s3_http.f90
+  src/s3_io.f90
+)
 
 # Create library
 add_library(s3_accessor ${LIB_SOURCES})

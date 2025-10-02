@@ -51,6 +51,18 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install libcurl development library
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev
+
+      - name: Install libcurl development library (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          # curl is pre-installed on macOS, just ensure headers are available
+          brew list --versions curl || brew install curl
+
       - name: Fix compiler symlinks for Intel macOS
         if: matrix.os == 'macos-15-intel'
         run: |

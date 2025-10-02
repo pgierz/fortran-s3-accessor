@@ -35,6 +35,7 @@
 module s3_http
     use curl_stream, only: stream_command_output, is_streaming_available
     use s3_logger
+    use libcurl_bindings, only: is_libcurl_available, curl_get_to_buffer, curl_buffer_t
     implicit none
     private
 
@@ -245,14 +246,37 @@ contains
         write(msg, '(A,A)') 'URL: ', trim(url)
         call s3_log_debug(trim(msg))
 
-        ! Build curl command
+        ! Try libcurl first (fastest, cross-platform)
+        if (is_libcurl_available()) then
+            call s3_log_debug('Attempting native libcurl')
+            success = s3_get_object_libcurl(trim(url), content)
+            if (success) then
+                write(msg, '(A,I0,A)') 'libcurl successful, received ', len(content), ' bytes'
+                call s3_log_debug(trim(msg))
+                ! Check for S3 error in response
+                if (index(content, '<Error>') > 0) then
+                    call s3_log_error('S3 error detected in response')
+                    if (len(content) < 500) then
+                        call s3_log_debug('Response: ' // content)
+                    else
+                        call s3_log_debug('Response (first 500 chars): ' // content(1:500))
+                    end if
+                    success = .false.
+                end if
+                return
+            else
+                call s3_log_warn('libcurl failed, trying fallback methods')
+            end if
+        end if
+
+        ! Build curl command for subprocess methods
         write(cmd, '(A,A,A)') 'curl -s "', trim(url), '"'
         write(msg, '(A,A)') 'Command: ', trim(cmd)
         call s3_log_trace(trim(msg))
 
-        ! Try streaming first (if available), fall back to temp file
+        ! Try popen streaming (if available)
         if (is_streaming_available()) then
-            call s3_log_debug('Attempting direct streaming')
+            call s3_log_debug('Attempting popen() streaming')
             ! Use direct streaming (no disk I/O)
             success = stream_command_output(trim(cmd), content, exit_status)
             if (success .and. exit_status == 0) then
@@ -270,18 +294,41 @@ contains
                 end if
                 return
             else
-                write(msg, '(A,I0)') 'Streaming failed with exit status: ', exit_status
+                write(msg, '(A,I0)') 'popen() failed with exit status: ', exit_status
                 call s3_log_warn(trim(msg))
             end if
         else
-            call s3_log_info('Streaming not available, using temp file method')
+            call s3_log_info('popen() not available')
         end if
 
-        ! Fallback to temp file method (for Windows or if streaming fails)
+        ! Fallback to temp file method (last resort)
         call s3_log_debug('Falling back to temp file method')
         success = s3_get_object_fallback(key, content)
 
     end function s3_get_object
+
+    !> libcurl implementation for GET requests.
+    !>
+    !> Uses native libcurl bindings for maximum performance.
+    !>
+    !> @param[in] url The complete URL to fetch
+    !> @param[out] content The downloaded content
+    !> @return .true. if successful, .false. otherwise
+    function s3_get_object_libcurl(url, content) result(success)
+        character(len=*), intent(in) :: url
+        character(len=:), allocatable, intent(out) :: content
+        logical :: success
+        type(curl_buffer_t) :: buffer
+
+        success = curl_get_to_buffer(url, buffer)
+
+        if (success .and. allocated(buffer%data)) then
+            content = buffer%data
+        else
+            success = .false.
+        end if
+
+    end function s3_get_object_libcurl
 
     !> Fallback implementation using temporary files.
     !>

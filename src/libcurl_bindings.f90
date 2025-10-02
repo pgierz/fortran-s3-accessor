@@ -164,15 +164,31 @@ contains
     !> Attempts to call curl_easy_init() to verify libcurl can be loaded.
     !> Result is cached for subsequent calls.
     !>
+    !> Can be disabled for testing by setting S3_DISABLE_LIBCURL=1 environment variable.
+    !>
     !> @return .true. if libcurl is available, .false. otherwise
     function is_libcurl_available() result(available)
         logical :: available
         type(c_ptr) :: test_handle
+        character(len=256) :: env_value
+        integer :: status
 
         ! Return cached result if already checked
         if (libcurl_checked) then
             available = libcurl_loaded
             return
+        end if
+
+        ! Check if libcurl is disabled via environment variable (for testing)
+        call get_environment_variable('S3_DISABLE_LIBCURL', env_value, status=status)
+        if (status == 0 .and. len_trim(env_value) > 0) then
+            if (env_value(1:1) == '1' .or. env_value(1:1) == 'Y' .or. env_value(1:1) == 'y') then
+                libcurl_checked = .true.
+                libcurl_loaded = .false.
+                available = .false.
+                call s3_log_info('libcurl disabled via S3_DISABLE_LIBCURL - using fallback')
+                return
+            end if
         end if
 
         call s3_log_debug('Checking libcurl availability...')

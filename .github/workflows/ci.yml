@@ -89,6 +89,8 @@ jobs:
 
       - name: Run tests with FPM
         shell: bash
+        env:
+          S3_DISABLE_LIBCURL: 1
         run: |
           chmod +x test/scripts/curl
           PATH="${PWD}/test/scripts:$PATH" fpm test --verbose

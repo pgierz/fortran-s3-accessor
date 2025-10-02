@@ -51,42 +51,26 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup library paths for macOS FPM (Intel)
+      - name: Fix compiler symlinks for Intel macOS
         if: matrix.os == 'macos-15-intel'
         run: |
-          # Pre-built FPM expects Homebrew gcc@12 paths
-          # Check if the expected path already exists (Homebrew creates /usr/local/opt/gcc@12 symlink)
-          EXPECTED_PATH="/usr/local/opt/gcc@12/lib/gcc/12/libgfortran.5.dylib"
+          # The setup-fortran action incorrectly assumes macOS 15 uses /opt/homebrew (ARM)
+          # On Intel runners, we need /usr/local/bin
+          echo "Fixing compiler symlinks for Intel macOS..."
 
-          if [ -f "$EXPECTED_PATH" ]; then
-            echo "✓ Library path already exists: $EXPECTED_PATH"
-          else
-            echo "Library path not found, creating symlinks..."
-            # Intel Macs use /usr/local, ARM uses /opt/homebrew
-            ACTUAL_LIB=$(find /usr/local -path "*/gcc@12/*/libgfortran.5.dylib" 2>/dev/null | head -1 | xargs dirname)
+          # Remove broken symlinks created by setup-fortran
+          sudo rm -f /usr/local/bin/gfortran /usr/local/bin/gcc /usr/local/bin/g++
 
-            if [ -z "$ACTUAL_LIB" ]; then
-              echo "ERROR: gcc@12 libraries not found"
-              exit 1
-            fi
+          # Create correct symlinks to /usr/local/bin (Intel Homebrew location)
+          sudo ln -sf /usr/local/bin/gfortran-12 /usr/local/bin/gfortran
+          sudo ln -sf /usr/local/bin/gcc-12 /usr/local/bin/gcc
+          sudo ln -sf /usr/local/bin/g++-12 /usr/local/bin/g++
 
-            echo "Found gcc@12 at: $ACTUAL_LIB"
-
-            # Create symlink at /usr/local/opt level if it doesn't exist
-            if [ ! -e /usr/local/opt/gcc@12 ]; then
-              sudo ln -sf /usr/local/Cellar/gcc@12/12.4.0 /usr/local/opt/gcc@12
-              echo "Created /usr/local/opt/gcc@12 symlink"
-            fi
-          fi
-
-          # Test gfortran directly
-          echo "Testing gfortran:"
+          # Verify
+          echo "Verifying gfortran..."
           which gfortran
-          gfortran --version || echo "ERROR: gfortran --version failed"
-
-          # Test simple compilation
-          echo "program test; end program test" > /tmp/test.f90
-          gfortran -c /tmp/test.f90 -o /tmp/test.o && echo "✓ gfortran test compilation successful" || echo "ERROR: gfortran test compilation failed"
+          gfortran --version
+          echo "✓ Compiler symlinks fixed"
 
       - name: Build with FPM
         run: fpm build --verbose

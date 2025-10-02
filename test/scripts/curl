@@ -76,17 +76,9 @@ def main():
     response_dir = script_dir / ".." / "data" / "responses"
     response_dir = response_dir.resolve()
 
-    # Debug: log arguments (only in CI)
-    if os.environ.get('CI'):
-        print(f"Mock curl args: {sys.argv[1:]}", file=sys.stderr)
-
     # Parse arguments
     parsed = parse_curl_args(sys.argv[1:])
     key = extract_key_from_url(parsed["url"])
-
-    # Debug: log parsed values
-    if os.environ.get('CI'):
-        print(f"Parsed - URL: {parsed['url']}, Key: {key}, Output: {parsed['output_file']}", file=sys.stderr)
 
     # Handle HEAD requests
     if parsed["is_head"]:
@@ -108,44 +100,46 @@ def main():
         sys.exit(0)
 
     # Handle GET requests
-    # Special test cases (check before file operations)
-    if key == "network_failure_test.txt":
-        sys.exit(7)  # Connection failure
-    elif key == "timeout_test.txt":
-        sys.exit(28)  # Timeout
-
-    # Get response content
-    response_file = response_dir / key
-    if key == "malformed_response.txt":
-        response_file = response_dir / "malformed.xml"
-
-    if response_file.exists():
-        content = response_file.read_bytes()
-    else:
-        # NoSuchKey error
-        nosuchkey = response_dir / "nosuchkey.xml"
-        if nosuchkey.exists():
-            content = nosuchkey.read_bytes()
-        else:
-            # Fallback NoSuchKey response
-            content = (
-                '<?xml version="1.0" encoding="UTF-8"?>\n'
-                '<Error><Code>NoSuchKey</Code>'
-                '<Message>The specified key does not exist.</Message>'
-                f'<Key>{key}</Key></Error>\n'
-            ).encode()
-
-    # Output to file or stdout
     if parsed["output_file"]:
         output_path = Path(parsed["output_file"])
+
         # Create parent directory if it doesn't exist (handles /tmp on Windows)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_bytes(content)
-    else:
-        # Output to stdout for popen() streaming
-        sys.stdout.buffer.write(content)
 
-    sys.exit(0)
+        # Special test cases
+        if key == "network_failure_test.txt":
+            sys.exit(7)  # Connection failure
+        elif key == "timeout_test.txt":
+            sys.exit(28)  # Timeout
+        elif key == "malformed_response.txt":
+            malformed = response_dir / "malformed.xml"
+            if malformed.exists():
+                shutil.copy(malformed, output_path)
+                sys.exit(0)
+
+        # Normal response file
+        response_file = response_dir / key
+        if response_file.exists():
+            shutil.copy(response_file, output_path)
+            sys.exit(0)
+        else:
+            # Return NoSuchKey error
+            nosuchkey = response_dir / "nosuchkey.xml"
+            if nosuchkey.exists():
+                shutil.copy(nosuchkey, output_path)
+            else:
+                # Fallback NoSuchKey response
+                output_path.write_text(
+                    '<?xml version="1.0" encoding="UTF-8"?>\n'
+                    '<Error><Code>NoSuchKey</Code>'
+                    '<Message>The specified key does not exist.</Message>'
+                    f'<Key>{key}</Key></Error>\n'
+                )
+            sys.exit(0)
+
+    # Unsupported operation
+    print("Mock curl: Unsupported operation", file=sys.stderr)
+    sys.exit(1)
 
 
 if __name__ == "__main__":

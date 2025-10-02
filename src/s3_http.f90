@@ -61,6 +61,7 @@ module s3_http
         character(len=256) :: access_key = ''    !< AWS access key ID (optional for public buckets)
         character(len=256) :: secret_key = ''    !< AWS secret access key (optional for public buckets)
         logical :: use_https = .true.            !< Use HTTPS protocol (recommended)
+        logical :: use_path_style = .false.      !< Use path-style URLs (required for MinIO/localhost)
     end type s3_config
 
     ! Module variables
@@ -229,17 +230,33 @@ contains
         end if
         call s3_log_info(trim(msg))
 
-        ! Build URL
-        if (current_config%use_https) then
-            write(url, '(A,A,A,A,A,A)') 'https://', &
-                trim(current_config%bucket), '.', &
-                trim(current_config%endpoint), '/', &
-                trim(key)
+        ! Build URL - support both virtual-host and path-style
+        if (current_config%use_path_style) then
+            ! Path-style: http://endpoint/bucket/key
+            if (current_config%use_https) then
+                write(url, '(A,A,A,A,A,A)') 'https://', &
+                    trim(current_config%endpoint), '/', &
+                    trim(current_config%bucket), '/', &
+                    trim(key)
+            else
+                write(url, '(A,A,A,A,A,A)') 'http://', &
+                    trim(current_config%endpoint), '/', &
+                    trim(current_config%bucket), '/', &
+                    trim(key)
+            end if
         else
-            write(url, '(A,A,A,A,A,A)') 'http://', &
-                trim(current_config%bucket), '.', &
-                trim(current_config%endpoint), '/', &
-                trim(key)
+            ! Virtual-host style: http://bucket.endpoint/key (original behavior)
+            if (current_config%use_https) then
+                write(url, '(A,A,A,A,A,A)') 'https://', &
+                    trim(current_config%bucket), '.', &
+                    trim(current_config%endpoint), '/', &
+                    trim(key)
+            else
+                write(url, '(A,A,A,A,A,A)') 'http://', &
+                    trim(current_config%bucket), '.', &
+                    trim(current_config%endpoint), '/', &
+                    trim(key)
+            end if
         end if
 
         write(msg, '(A,A)') 'URL: ', trim(url)
@@ -303,17 +320,33 @@ contains
 
         success = .false.
 
-        ! Build URL
-        if (current_config%use_https) then
-            write(url, '(A,A,A,A,A,A)') 'https://', &
-                trim(current_config%bucket), '.', &
-                trim(current_config%endpoint), '/', &
-                trim(key)
+        ! Build URL - support both virtual-host and path-style
+        if (current_config%use_path_style) then
+            ! Path-style: http://endpoint/bucket/key
+            if (current_config%use_https) then
+                write(url, '(A,A,A,A,A,A)') 'https://', &
+                    trim(current_config%endpoint), '/', &
+                    trim(current_config%bucket), '/', &
+                    trim(key)
+            else
+                write(url, '(A,A,A,A,A,A)') 'http://', &
+                    trim(current_config%endpoint), '/', &
+                    trim(current_config%bucket), '/', &
+                    trim(key)
+            end if
         else
-            write(url, '(A,A,A,A,A,A)') 'http://', &
-                trim(current_config%bucket), '.', &
-                trim(current_config%endpoint), '/', &
-                trim(key)
+            ! Virtual-host style: http://bucket.endpoint/key (original behavior)
+            if (current_config%use_https) then
+                write(url, '(A,A,A,A,A,A)') 'https://', &
+                    trim(current_config%bucket), '.', &
+                    trim(current_config%endpoint), '/', &
+                    trim(key)
+            else
+                write(url, '(A,A,A,A,A,A)') 'http://', &
+                    trim(current_config%bucket), '.', &
+                    trim(current_config%endpoint), '/', &
+                    trim(key)
+            end if
         end if
 
         ! Create temp file name
@@ -399,17 +432,33 @@ contains
             return
         end if
 
-        ! Build URL
-        if (current_config%use_https) then
-            write(url, '(A,A,A,A,A,A)') 'https://', &
-                trim(current_config%bucket), '.', &
-                trim(current_config%endpoint), '/', &
-                trim(key)
+        ! Build URL - support both virtual-host and path-style
+        if (current_config%use_path_style) then
+            ! Path-style: http://endpoint/bucket/key
+            if (current_config%use_https) then
+                write(url, '(A,A,A,A,A,A)') 'https://', &
+                    trim(current_config%endpoint), '/', &
+                    trim(current_config%bucket), '/', &
+                    trim(key)
+            else
+                write(url, '(A,A,A,A,A,A)') 'http://', &
+                    trim(current_config%endpoint), '/', &
+                    trim(current_config%bucket), '/', &
+                    trim(key)
+            end if
         else
-            write(url, '(A,A,A,A,A,A)') 'http://', &
-                trim(current_config%bucket), '.', &
-                trim(current_config%endpoint), '/', &
-                trim(key)
+            ! Virtual-host style: http://bucket.endpoint/key (original behavior)
+            if (current_config%use_https) then
+                write(url, '(A,A,A,A,A,A)') 'https://', &
+                    trim(current_config%bucket), '.', &
+                    trim(current_config%endpoint), '/', &
+                    trim(key)
+            else
+                write(url, '(A,A,A,A,A,A)') 'http://', &
+                    trim(current_config%bucket), '.', &
+                    trim(current_config%endpoint), '/', &
+                    trim(key)
+            end if
         end if
 
         ! Create temp file with content
@@ -467,17 +516,33 @@ contains
         exists = .false.
         if (.not. initialized) return
 
-        ! Build URL
-        if (current_config%use_https) then
-            write(url, '(A,A,A,A,A,A)') 'https://', &
-                trim(current_config%bucket), '.', &
-                trim(current_config%endpoint), '/', &
-                trim(key)
+        ! Build URL - support both virtual-host and path-style
+        if (current_config%use_path_style) then
+            ! Path-style: http://endpoint/bucket/key
+            if (current_config%use_https) then
+                write(url, '(A,A,A,A,A,A)') 'https://', &
+                    trim(current_config%endpoint), '/', &
+                    trim(current_config%bucket), '/', &
+                    trim(key)
+            else
+                write(url, '(A,A,A,A,A,A)') 'http://', &
+                    trim(current_config%endpoint), '/', &
+                    trim(current_config%bucket), '/', &
+                    trim(key)
+            end if
         else
-            write(url, '(A,A,A,A,A,A)') 'http://', &
-                trim(current_config%bucket), '.', &
-                trim(current_config%endpoint), '/', &
-                trim(key)
+            ! Virtual-host style: http://bucket.endpoint/key (original behavior)
+            if (current_config%use_https) then
+                write(url, '(A,A,A,A,A,A)') 'https://', &
+                    trim(current_config%bucket), '.', &
+                    trim(current_config%endpoint), '/', &
+                    trim(key)
+            else
+                write(url, '(A,A,A,A,A,A)') 'http://', &
+                    trim(current_config%bucket), '.', &
+                    trim(current_config%endpoint), '/', &
+                    trim(key)
+            end if
         end if
 
         ! Use curl HEAD request to check existence
@@ -527,17 +592,33 @@ contains
             return
         end if
 
-        ! Build URL
-        if (current_config%use_https) then
-            write(url, '(A,A,A,A,A,A)') 'https://', &
-                trim(current_config%bucket), '.', &
-                trim(current_config%endpoint), '/', &
-                trim(key)
+        ! Build URL - support both virtual-host and path-style
+        if (current_config%use_path_style) then
+            ! Path-style: http://endpoint/bucket/key
+            if (current_config%use_https) then
+                write(url, '(A,A,A,A,A,A)') 'https://', &
+                    trim(current_config%endpoint), '/', &
+                    trim(current_config%bucket), '/', &
+                    trim(key)
+            else
+                write(url, '(A,A,A,A,A,A)') 'http://', &
+                    trim(current_config%endpoint), '/', &
+                    trim(current_config%bucket), '/', &
+                    trim(key)
+            end if
         else
-            write(url, '(A,A,A,A,A,A)') 'http://', &
-                trim(current_config%bucket), '.', &
-                trim(current_config%endpoint), '/', &
-                trim(key)
+            ! Virtual-host style: http://bucket.endpoint/key (original behavior)
+            if (current_config%use_https) then
+                write(url, '(A,A,A,A,A,A)') 'https://', &
+                    trim(current_config%bucket), '.', &
+                    trim(current_config%endpoint), '/', &
+                    trim(key)
+            else
+                write(url, '(A,A,A,A,A,A)') 'http://', &
+                    trim(current_config%bucket), '.', &
+                    trim(current_config%endpoint), '/', &
+                    trim(key)
+            end if
         end if
 
         ! Build curl command for DELETE

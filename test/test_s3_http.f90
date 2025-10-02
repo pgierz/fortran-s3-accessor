@@ -33,7 +33,9 @@ contains
             new_unittest("boundary_content_sizes", test_boundary_content_sizes), &
             new_unittest("auth_edge_cases", test_auth_edge_cases), &
             new_unittest("s3_uri_parsing", test_s3_uri_parsing), &
-            new_unittest("s3_uri_operations", test_s3_uri_operations) &
+            new_unittest("s3_uri_operations", test_s3_uri_operations), &
+            new_unittest("path_style_config", test_path_style_config), &
+            new_unittest("path_style_url_get", test_path_style_url_get) &
         ]
     end subroutine collect_s3_http
 
@@ -569,5 +571,60 @@ contains
         ! This will use the bucket from the URI, not the config
         call check(error, .true., "Cross-bucket URI should not crash")
     end subroutine test_s3_uri_operations
+
+    !> Test path-style URL configuration
+    subroutine test_path_style_config(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(s3_config) :: config
+
+        ! Test default value is false (virtual-host style)
+        config%bucket = 'test-bucket'
+        config%endpoint = 'localhost:9000'
+        config%use_https = .false.
+
+        call check(error, config%use_path_style .eqv. .false., &
+                   "Default use_path_style should be false")
+        if (allocated(error)) return
+
+        ! Test setting to true
+        config%use_path_style = .true.
+        call check(error, config%use_path_style .eqv. .true., &
+                   "use_path_style should be settable to true")
+        if (allocated(error)) return
+
+        ! Initialize with path-style enabled
+        call s3_init(config)
+        call check(error, .true., "Should initialize with path-style enabled")
+    end subroutine test_path_style_config
+
+    !> Test path-style URL construction for GET operations
+    subroutine test_path_style_url_get(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(s3_config) :: config
+        character(len=:), allocatable :: content
+        logical :: success
+
+        ! Configure for path-style URLs (MinIO-compatible)
+        config%bucket = 'test-bucket'
+        config%endpoint = 'localhost:9000'
+        config%use_https = .false.
+        config%use_path_style = .true.
+        call s3_init(config)
+
+        ! Test GET with path-style
+        ! Mock curl should handle http://localhost:9000/test-bucket/test_object.txt
+        success = s3_get_object("test_object.txt", content)
+
+        ! With mock curl, this should succeed
+        call check(error, success, "GET should work with path-style URLs")
+        if (allocated(error)) return
+
+        ! Test with HTTPS path-style
+        config%use_https = .true.
+        call s3_init(config)
+
+        success = s3_get_object("test_object.txt", content)
+        call check(error, success, "GET should work with HTTPS path-style URLs")
+    end subroutine test_path_style_url_get
 
 end module test_s3_http

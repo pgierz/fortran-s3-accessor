@@ -76,9 +76,17 @@ def main():
     response_dir = script_dir / ".." / "data" / "responses"
     response_dir = response_dir.resolve()
 
+    # Debug: log arguments (only in CI)
+    if os.environ.get('CI'):
+        print(f"Mock curl args: {sys.argv[1:]}", file=sys.stderr)
+
     # Parse arguments
     parsed = parse_curl_args(sys.argv[1:])
     key = extract_key_from_url(parsed["url"])
+
+    # Debug: log parsed values
+    if os.environ.get('CI'):
+        print(f"Parsed - URL: {parsed['url']}, Key: {key}, Output: {parsed['output_file']}", file=sys.stderr)
 
     # Handle HEAD requests
     if parsed["is_head"]:

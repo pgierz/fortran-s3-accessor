@@ -271,9 +271,9 @@ contains
         integer(c_size_t) :: bytes_written
 
         type(curl_buffer_t), pointer :: buffer
-        character(kind=c_char), pointer :: chunk(:)
-        integer :: chunk_size, i
-        character(len=:), allocatable :: temp_data
+        integer(c_int8_t), pointer :: chunk_bytes(:)
+        integer :: chunk_size
+        character(len=:), allocatable :: temp_data, chunk_str
         character(len=256) :: msg
 
         bytes_written = 0
@@ -292,22 +292,21 @@ contains
         write(msg, '(A,I0,A)') 'Write callback: receiving ', chunk_size, ' bytes'
         call s3_log_trace(trim(msg))
 
-        ! Get pointer to received data
-        call c_f_pointer(ptr, chunk, [chunk_size])
+        ! Get pointer to received data as byte array
+        call c_f_pointer(ptr, chunk_bytes, [chunk_size])
+
+        ! Convert bytes to Fortran string using transfer (avoids pointer aliasing issues)
+        allocate(character(len=chunk_size) :: chunk_str)
+        chunk_str = transfer(chunk_bytes(1:chunk_size), chunk_str)
 
         ! Append to buffer
         if (allocated(buffer%data)) then
             allocate(character(len=len(buffer%data) + chunk_size) :: temp_data)
-            temp_data = buffer%data
-            do i = 1, chunk_size
-                temp_data(len(buffer%data) + i:len(buffer%data) + i) = chunk(i)
-            end do
+            temp_data(1:len(buffer%data)) = buffer%data
+            temp_data(len(buffer%data)+1:) = chunk_str
             call move_alloc(temp_data, buffer%data)
         else
-            allocate(character(len=chunk_size) :: buffer%data)
-            do i = 1, chunk_size
-                buffer%data(i:i) = chunk(i)
-            end do
+            call move_alloc(chunk_str, buffer%data)
         end if
 
         buffer%size = buffer%size + chunk_size

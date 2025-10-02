@@ -314,7 +314,8 @@ contains
 
         type(c_ptr) :: handle
         integer(c_int) :: res
-        character(len=256) :: msg
+        character(len=1024) :: msg
+        character(len=512) :: url_truncated
         procedure(write_callback), pointer :: callback_ptr
 
         success = .false.
@@ -355,8 +356,13 @@ contains
         res = curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1_c_int)
         res = curl_easy_setopt(handle, CURLOPT_FAILONERROR, 1_c_int)
 
-        ! Perform the request
-        write(msg, '(A,A)') 'Performing GET request to: ', trim(url)
+        ! Perform the request (truncate URL for logging if too long)
+        if (len_trim(url) > 500) then
+            url_truncated = url(1:497) // '...'
+        else
+            url_truncated = trim(url)
+        end if
+        write(msg, '(A,A)') 'Performing GET request to: ', trim(url_truncated)
         call s3_log_debug(trim(msg))
 
         res = curl_easy_perform(handle)

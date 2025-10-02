@@ -90,16 +90,27 @@ The current simple implementation consists of:
 The library includes comprehensive testing infrastructure:
 - **test-drive framework**: 22+ test cases covering all operations
 - **Mock testing system**: PATH-based curl mocking for reliable testing
+- **Platform support**: Mock scripts for Linux, macOS, and Windows
 - **Edge case coverage**: Authentication, network failures, malformed responses
 - **Uninitialized state testing**: Separate test executable for proper isolation
 
 ## Common Development Tasks
 
 ### Running Tests
+
+**All Platforms (Linux / macOS / Windows):**
 ```bash
-# Run tests with mock curl (required for S3 operation testing)
+# Run tests with Python-based mock curl (required for S3 operation testing)
 PATH="test/scripts:$PATH" fpm test
 ```
+
+The mock curl is implemented in Python for cross-platform compatibility.
+
+**CI Testing:**
+The GitHub Actions CI automatically tests on:
+- Linux (ubuntu-latest) with gcc 11, 12, 13
+- macOS (macos-latest) with gcc 12, 13
+- Windows (windows-latest) with gcc 12, 13
 
 ### Adding New Tests
 1. Add test case to `test/test_s3_http.f90` using test-drive framework

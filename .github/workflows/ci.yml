@@ -17,13 +17,22 @@ env:
 
 jobs:
   test-fpm:
-    name: Test with FPM
+    name: Test with FPM (${{ matrix.os }}, gcc-${{ matrix.gcc-version }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, macos-15-intel, windows-latest]
         gcc-version: [11, 12, 13]
+        exclude:
+          # Reduce matrix size - test key combinations only
+          - os: macos-15-intel
+            gcc-version: 11
+          - os: macos-15-intel
+            gcc-version: 13  # Pre-built FPM binary requires gcc@12 and Intel
+          - os: windows-latest
+            gcc-version: 11
 
     steps:
       - name: Checkout code
@@ -42,10 +51,32 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Fix compiler symlinks for Intel macOS
+        if: matrix.os == 'macos-15-intel'
+        run: |
+          # The setup-fortran action incorrectly assumes macOS 15 uses /opt/homebrew (ARM)
+          # On Intel runners, we need /usr/local/bin
+          echo "Fixing compiler symlinks for Intel macOS..."
+
+          # Remove broken symlinks created by setup-fortran
+          sudo rm -f /usr/local/bin/gfortran /usr/local/bin/gcc /usr/local/bin/g++
+
+          # Create correct symlinks to /usr/local/bin (Intel Homebrew location)
+          sudo ln -sf /usr/local/bin/gfortran-12 /usr/local/bin/gfortran
+          sudo ln -sf /usr/local/bin/gcc-12 /usr/local/bin/gcc
+          sudo ln -sf /usr/local/bin/g++-12 /usr/local/bin/g++
+
+          # Verify
+          echo "Verifying gfortran..."
+          which gfortran
+          gfortran --version
+          echo "✓ Compiler symlinks fixed"
+
       - name: Build with FPM
         run: fpm build --verbose
 
       - name: Run tests with FPM
+        shell: bash
         run: |
           chmod +x test/scripts/curl
           PATH="${PWD}/test/scripts:$PATH" fpm test --verbose
@@ -54,13 +85,20 @@ jobs:
         run: fpm run --verbose
 
   test-cmake:
-    name: Test with CMake
+    name: Test with CMake (${{ matrix.os }}, ${{ matrix.build-type }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         build-type: [Debug, Release]
+        exclude:
+          # Reduce matrix - test Release on all, Debug on Linux only
+          - os: macos-latest
+            build-type: Debug
+          - os: windows-latest
+            build-type: Debug
 
     steps:
       - name: Checkout code
@@ -75,8 +113,10 @@ jobs:
           version: 12
 
       - name: Configure CMake
+        shell: bash
         run: |
           cmake -B build \
+                ${{ runner.os == 'Windows' && '-G "MinGW Makefiles"' || '' }} \
                 -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} \
                 -DCMAKE_Fortran_COMPILER=gfortran
 

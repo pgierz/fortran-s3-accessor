@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Direct file streaming** via `curl_get_to_file()` (Linux only)
+  - Downloads directly to file without subprocess overhead or memory buffering
+  - Ideal for large files that need to be on disk (e.g., NetCDF files)
+  - Eliminates subprocess fork/exec overhead compared to temp file fallback
+  - Demo application (`app/file_download_demo.f90`)
+  - **Unblocks fortran-s3-netcdf issue #5**
+- **Progress callback support** for HTTP downloads (Linux only)
+  - New `curl_get_to_buffer_with_progress()` function with real-time progress reporting
+  - `curl_progress_callback` abstract interface for user-defined callbacks
+  - Demo application (`app/progress_demo.f90`) showing progress bar implementation
+  - Useful for monitoring large climate data downloads
+
+### Changed
+
+- **Simplified to Linux-focused development**
+  - Removed macOS and Windows from CI workflows (Linux gcc 11, 12, 13 only)
+  - Clarified platform support: Linux for production, macOS/Windows work via subprocess fallbacks
+  - Core S3 operations work on all platforms via automatic fallback chain
+  - Progress callbacks and optimal performance require Linux (libcurl direct binding)
+  - Rationale: Production deployments are Linux-only where full feature support matters
+
 ## [1.1.0] - 2025-10-01
 
 ### Added

@@ -2,10 +2,26 @@
 
 A simple Fortran library for S3-compatible object storage access using direct HTTP calls.
 
+## Platform Support
+
+| Platform | S3 Operations | Progress Callbacks | Performance | Status |
+|----------|---------------|-------------------|-------------|---------|
+| **Linux** | ✅ Full support | ✅ Yes | Excellent (libcurl direct) | Production ready |
+| **macOS** | ✅ Full support | ❌ No | Good (subprocess fallback) | Works, not recommended for production |
+| **Windows** | ✅ Full support | ❌ No | Acceptable (temp file fallback) | Works, not recommended for production |
+
+**Recommended**: Linux for production deployments. macOS/Windows supported for development and testing.
+
+The library uses an intelligent fallback strategy:
+1. **libcurl direct** (Linux): Zero-copy streaming, full feature support
+2. **popen() streaming** (macOS): Subprocess overhead, core operations work
+3. **Temp files** (Windows): Disk I/O overhead, core operations work
+
 ## Features
 
 - **Simple HTTP-based S3 operations**: GET, PUT, DELETE, and HEAD requests
-- **No external dependencies**: Uses only standard Fortran and system curl
+- **Progress callbacks** (Linux only): Real-time download monitoring for large files
+- **Automatic platform fallbacks**: Core operations work on all platforms
 - **Comprehensive testing**: 22+ test cases with mock-based testing framework
 - **Production ready**: Designed for scientific computing workflows like FESOM
 

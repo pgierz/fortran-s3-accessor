@@ -85,6 +85,22 @@ The current simple implementation consists of:
 - **Configuration-Driven**: S3 parameters controlled via `s3_config` type
 - **Stateful Design**: Initialize once with `s3_init()`, then perform operations
 
+## Platform Support
+
+**Primary target: Linux** (production ready with full feature support)
+
+The library works on all platforms with automatic fallback:
+- **Linux**: Uses libcurl direct binding (best performance, all features including progress callbacks)
+- **macOS**: Falls back to popen() subprocess streaming (good performance, core operations work)
+- **Windows**: Falls back to temp file method (acceptable performance, core operations work)
+
+**Feature availability:**
+- S3 operations (GET, PUT, DELETE, HEAD): ✅ All platforms
+- Progress callbacks: ✅ Linux only (requires libcurl direct)
+- Zero-copy streaming: ✅ Linux only (requires libcurl direct)
+
+**Recommendation**: Use Linux for production deployments. macOS/Windows suitable for development and testing.
+
 ## Testing
 
 The library includes comprehensive testing infrastructure:
@@ -96,10 +112,14 @@ The library includes comprehensive testing infrastructure:
 ## Common Development Tasks
 
 ### Running Tests
+
 ```bash
 # Run tests with mock curl (required for S3 operation testing)
 PATH="test/scripts:$PATH" fpm test
 ```
+
+**CI Testing:**
+The GitHub Actions CI tests on Linux (ubuntu-latest) with gcc 11, 12, 13
 
 ### Adding New Tests
 1. Add test case to `test/test_s3_http.f90` using test-drive framework
@@ -108,6 +128,9 @@ PATH="test/scripts:$PATH" fpm test
 
 ## Important Notes
 
+- **Linux recommended for production** - full feature support with optimal performance
+- Works on macOS/Windows with automatic subprocess fallbacks (core operations only)
 - The library is designed for Fortran 2008 compatibility
 - No external dependencies beyond standard Fortran and system curl
 - **URL encoding in S3 keys is currently untested and unsupported** - use simple alphanumeric keys and underscores only
+- **Progress callbacks require Linux** - uses libcurl direct binding which has ABI issues on macOS

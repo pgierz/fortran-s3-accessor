@@ -1,124 +1,146 @@
-#!/bin/bash
-# Mock curl script for testing S3 operations
+#!/usr/bin/env python3
+"""
+Mock curl script for testing S3 operations.
+Cross-platform replacement for bash/batch curl mocks.
+"""
 
-# Directory containing mock responses
-RESPONSE_DIR="$(dirname "$0")/../data/responses"
+import sys
+import os
+from pathlib import Path
+import shutil
 
-# Parse curl arguments to determine what's being requested
-OUTPUT_FILE=""
-URL=""
-IS_HEAD_REQUEST=false
-IS_PUT_REQUEST=false
-IS_DELETE_REQUEST=false
-DATA_FILE=""
 
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        -o)
-            OUTPUT_FILE="$2"
-            shift 2
-            ;;
-        -I)
-            IS_HEAD_REQUEST=true
-            shift
-            ;;
-        -X)
-            if [ "$2" = "PUT" ]; then
-                IS_PUT_REQUEST=true
-            elif [ "$2" = "DELETE" ]; then
-                IS_DELETE_REQUEST=true
-            fi
-            shift 2
-            ;;
-        --data-binary)
-            if [[ "$2" =~ ^@ ]]; then
-                DATA_FILE="${2#@}"  # Remove @ prefix
-            fi
-            shift 2
-            ;;
-        -s|-S)
-            shift
-            ;;
-        http*|https*)
-            URL="$1"
-            shift
-            ;;
-        *)
-            shift
-            ;;
-    esac
-done
+def parse_curl_args(args):
+    """Parse curl command-line arguments."""
+    output_file = None
+    url = None
+    is_head = False
+    is_put = False
+    is_delete = False
+    data_file = None
 
-# Extract the object key from the URL
-# URL format: https://bucket.s3.amazonaws.com/key
-if [[ "$URL" =~ /([^/]+)$ ]]; then
-    KEY="${BASH_REMATCH[1]}"
-    # URL encode the key for file lookup (space -> %20, etc.)
-    ENCODED_KEY=$(printf '%s\n' "$KEY" | sed 's/ /%20/g')
-else
-    KEY=""
-    ENCODED_KEY=""
-fi
+    i = 0
+    while i < len(args):
+        arg = args[i]
 
-# Determine response file based on key
-if [ "$IS_HEAD_REQUEST" = true ]; then
-    # HEAD request - checking if object exists
-    if [ -f "$RESPONSE_DIR/head_${ENCODED_KEY}" ]; then
-        cat "$RESPONSE_DIR/head_${ENCODED_KEY}"
-        exit 0
-    else
-        exit 22  # curl error code for 404
-    fi
-fi
+        if arg == "-o" and i + 1 < len(args):
+            output_file = args[i + 1]
+            i += 2
+        elif arg == "-I":
+            is_head = True
+            i += 1
+        elif arg == "-X" and i + 1 < len(args):
+            method = args[i + 1]
+            if method == "PUT":
+                is_put = True
+            elif method == "DELETE":
+                is_delete = True
+            i += 2
+        elif arg == "--data-binary" and i + 1 < len(args):
+            data_file = args[i + 1].lstrip("@")
+            i += 2
+        elif arg in ("-s", "-S"):
+            i += 1
+        elif "://" in arg:
+            url = arg
+            i += 1
+        else:
+            i += 1
 
-# PUT request - upload object content
-if [ "$IS_PUT_REQUEST" = true ]; then
-    # Mock PUT success (HTTP 200) for any object with credentials
-    # In real S3, this would require AWS signature authentication
-    exit 0
-fi
+    return {
+        "output_file": output_file,
+        "url": url,
+        "is_head": is_head,
+        "is_put": is_put,
+        "is_delete": is_delete,
+        "data_file": data_file
+    }
 
-# DELETE request - delete object
-if [ "$IS_DELETE_REQUEST" = true ]; then
-    # Mock DELETE success (HTTP 204) for any object with credentials
-    # In real S3, this would require AWS signature authentication
-    # Simulate failure for certain test keys
-    if [ "$KEY" = "delete_failure_test.txt" ]; then
-        exit 22  # curl error code for HTTP error
-    fi
-    exit 0
-fi
 
-# GET request - return object content
-if [ -n "$OUTPUT_FILE" ]; then
-    # Special test cases for various scenarios
-    if [ "$KEY" = "network_failure_test.txt" ]; then
-        # Simulate network failure
-        exit 7  # curl error code for couldn't connect to host
-    elif [ "$KEY" = "timeout_test.txt" ]; then
-        # Simulate timeout
-        exit 28  # curl error code for operation timeout
-    elif [ "$KEY" = "malformed_response.txt" ]; then
-        # Special case for testing malformed XML responses
-        cp "$RESPONSE_DIR/malformed.xml" "$OUTPUT_FILE"
-        exit 0
-    elif [ -f "$RESPONSE_DIR/${KEY}" ]; then
-        # File exists - return its content
-        cp "$RESPONSE_DIR/${KEY}" "$OUTPUT_FILE"
-        exit 0
-    else
-        # File doesn't exist - return NoSuchKey error
-        if [ -f "$RESPONSE_DIR/nosuchkey.xml" ]; then
-            cp "$RESPONSE_DIR/nosuchkey.xml" "$OUTPUT_FILE"
-        else
-            # Fallback if nosuchkey.xml doesn't exist
-            echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > "$OUTPUT_FILE"
-            echo "<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>$KEY</Key></Error>" >> "$OUTPUT_FILE"
-        fi
-        exit 0
-    fi
-fi
+def extract_key_from_url(url):
+    """Extract object key from S3 URL."""
+    if not url:
+        return None
 
-# Default: if we get here, it's an unsupported operation
-echo "Mock curl: Unsupported operation" >&2
-exit 1
+    # URL format: https://bucket.s3.amazonaws.com/key
+    # Extract everything after the last /
+    parts = url.rstrip("/").split("/")
+    if len(parts) > 0:
+        return parts[-1]
+    return None
+
+
+def main():
+    # Get response directory
+    script_dir = Path(__file__).parent
+    response_dir = script_dir / ".." / "data" / "responses"
+    response_dir = response_dir.resolve()
+
+    # Parse arguments
+    parsed = parse_curl_args(sys.argv[1:])
+    key = extract_key_from_url(parsed["url"])
+
+    # Handle HEAD requests
+    if parsed["is_head"]:
+        head_file = response_dir / f"head_{key}"
+        if head_file.exists():
+            print(head_file.read_text(), end="")
+            sys.exit(0)
+        else:
+            sys.exit(22)  # 404 not found
+
+    # Handle PUT requests
+    if parsed["is_put"]:
+        sys.exit(0)  # Mock successful upload
+
+    # Handle DELETE requests
+    if parsed["is_delete"]:
+        if key == "delete_failure_test.txt":
+            sys.exit(22)
+        sys.exit(0)
+
+    # Handle GET requests
+    if parsed["output_file"]:
+        output_path = Path(parsed["output_file"])
+
+        # Create parent directory if it doesn't exist (handles /tmp on Windows)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Special test cases
+        if key == "network_failure_test.txt":
+            sys.exit(7)  # Connection failure
+        elif key == "timeout_test.txt":
+            sys.exit(28)  # Timeout
+        elif key == "malformed_response.txt":
+            malformed = response_dir / "malformed.xml"
+            if malformed.exists():
+                shutil.copy(malformed, output_path)
+                sys.exit(0)
+
+        # Normal response file
+        response_file = response_dir / key
+        if response_file.exists():
+            shutil.copy(response_file, output_path)
+            sys.exit(0)
+        else:
+            # Return NoSuchKey error
+            nosuchkey = response_dir / "nosuchkey.xml"
+            if nosuchkey.exists():
+                shutil.copy(nosuchkey, output_path)
+            else:
+                # Fallback NoSuchKey response
+                output_path.write_text(
+                    '<?xml version="1.0" encoding="UTF-8"?>\n'
+                    '<Error><Code>NoSuchKey</Code>'
+                    '<Message>The specified key does not exist.</Message>'
+                    f'<Key>{key}</Key></Error>\n'
+                )
+            sys.exit(0)
+
+    # Unsupported operation
+    print("Mock curl: Unsupported operation", file=sys.stderr)
+    sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

@@ -19,6 +19,7 @@ module libcurl_bindings
     public :: curl_cleanup
     public :: curl_get_to_buffer
     public :: curl_get_to_buffer_with_progress
+    public :: curl_get_to_file
     public :: is_libcurl_available
     public :: get_curl_error_string
     ! Generic interface and specific setopt functions
@@ -574,6 +575,155 @@ contains
         call curl_cleanup(handle)
 
     end function curl_get_to_buffer_with_progress
+
+    !> Perform HTTP GET and stream directly to file.
+    !>
+    !> This function downloads data using libcurl and writes it directly to a file
+    !> without buffering in memory. Ideal for large files that need to be on disk
+    !> (e.g., NetCDF files). Avoids subprocess overhead while minimizing memory usage.
+    !>
+    !> @param url URL to fetch
+    !> @param filepath Path to output file (will be created/overwritten)
+    !> @return .true. if successful, .false. on error
+    !>
+    !> @note Linux only - requires libcurl direct binding
+    !> @note File is created fresh (existing file will be overwritten)
+    function curl_get_to_file(url, filepath) result(success)
+        character(len=*), intent(in) :: url
+        character(len=*), intent(in) :: filepath
+        logical :: success
+
+        type(c_ptr) :: handle
+        integer(c_int) :: res
+        character(len=1024) :: msg
+        character(len=512) :: url_truncated
+        integer :: file_unit, ios
+        integer :: n
+
+        success = .false.
+
+        ! Check libcurl availability
+        if (.not. is_libcurl_available()) then
+            call s3_log_error('libcurl not available for direct file streaming')
+            return
+        end if
+
+        ! Initialize curl
+        if (.not. curl_init(handle)) return
+
+        ! Convert URL to C string using module-level buffer
+        n = len_trim(url)
+        if (n >= S3_URL_MAXLEN) then
+            write(msg, '(A,I0,A)') 'URL too long: ', n, ' chars (max 8192)'
+            call s3_log_error(trim(msg))
+            call curl_cleanup(handle)
+            return
+        end if
+        module_url_buffer = transfer(trim(url) // C_NULL_CHAR, module_url_buffer)
+
+        ! Set URL
+        res = curl_setopt_ptr(handle, CURLOPT_URL, c_loc(module_url_buffer))
+        if (res /= CURLE_OK) then
+            call s3_log_error('Failed to set URL: ' // trim(url))
+            call curl_cleanup(handle)
+            return
+        end if
+
+        ! Open output file (stream mode for direct byte writing)
+        open(newunit=file_unit, file=trim(filepath), access='stream', &
+             form='unformatted', status='replace', action='write', iostat=ios)
+        if (ios /= 0) then
+            write(msg, '(A,A,A,I0)') 'Failed to open file: ', trim(filepath), ', iostat=', ios
+            call s3_log_error(trim(msg))
+            call curl_cleanup(handle)
+            return
+        end if
+
+        ! Set write callback to write to file
+        res = curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, c_funloc(write_to_file_callback))
+        if (res /= CURLE_OK) then
+            call s3_log_error('Failed to set write callback')
+            close(file_unit)
+            call curl_cleanup(handle)
+            return
+        end if
+
+        ! Pass file unit as user data
+        res = curl_easy_setopt(handle, CURLOPT_WRITEDATA, transfer(file_unit, c_null_ptr))
+        if (res /= CURLE_OK) then
+            call s3_log_error('Failed to set write data')
+            close(file_unit)
+            call curl_cleanup(handle)
+            return
+        end if
+
+        ! Set other options
+        res = curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1_c_int)
+        res = curl_easy_setopt(handle, CURLOPT_FAILONERROR, 1_c_int)
+
+        ! Perform the request
+        if (len_trim(url) > 500) then
+            url_truncated = url(1:497) // '...'
+        else
+            url_truncated = trim(url)
+        end if
+        write(msg, '(A,A,A,A)') 'Streaming to file: ', trim(filepath), ' from: ', trim(url_truncated)
+        call s3_log_debug(trim(msg))
+
+        res = curl_easy_perform(handle)
+
+        ! Close file
+        close(file_unit)
+
+        if (res == CURLE_OK) then
+            success = .true.
+            call s3_log_debug('File download successful')
+        else
+            write(msg, '(A,A)') 'curl error: ', trim(get_curl_error_string(res))
+            call s3_log_error(trim(msg))
+        end if
+
+        ! Cleanup
+        call curl_cleanup(handle)
+
+    end function curl_get_to_file
+
+    !> Callback function for writing to file.
+    !>
+    !> Called by libcurl to write received data chunks directly to file.
+    function write_to_file_callback(ptr, size, nmemb, userdata) result(written) bind(C)
+        type(c_ptr), value :: ptr
+        integer(c_size_t), value :: size, nmemb
+        type(c_ptr), value :: userdata
+        integer(c_size_t) :: written
+
+        integer(c_size_t) :: total_size
+        character(kind=c_char), dimension(:), pointer :: data
+        integer :: file_unit, ios, i
+
+        total_size = size * nmemb
+        written = 0
+
+        if (total_size == 0) return
+
+        ! Convert userdata back to file unit
+        file_unit = transfer(userdata, file_unit)
+
+        ! Convert C pointer to Fortran array
+        call c_f_pointer(ptr, data, [total_size])
+
+        ! Write data to file (stream mode writes byte by byte)
+        do i = 1, int(total_size)
+            write(file_unit, iostat=ios) data(i)
+            if (ios /= 0) then
+                ! Write failed
+                return
+            end if
+        end do
+
+        written = total_size
+
+    end function write_to_file_callback
 
     !> Get human-readable error message for curl error code.
     !>

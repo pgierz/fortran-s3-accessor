@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Direct file streaming** via `curl_get_to_file()` (Linux only)
+  - Downloads directly to file without subprocess overhead or memory buffering
+  - Ideal for large files that need to be on disk (e.g., NetCDF files)
+  - Eliminates subprocess fork/exec overhead compared to temp file fallback
+  - Demo application (`app/file_download_demo.f90`)
+  - **Unblocks fortran-s3-netcdf issue #5**
 - **Progress callback support** for HTTP downloads (Linux only)
   - New `curl_get_to_buffer_with_progress()` function with real-time progress reporting
   - `curl_progress_callback` abstract interface for user-defined callbacks

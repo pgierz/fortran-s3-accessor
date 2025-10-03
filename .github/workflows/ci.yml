@@ -193,6 +193,53 @@ jobs:
         if: github.event_name == 'push'
         uses: actions/deploy-pages@v4
 
+  libcurl-minimal-test:
+    name: Minimal libcurl Test (${{ matrix.os }}, gcc-${{ matrix.gcc-version }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        gcc-version: [12, 13]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Fortran
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: gcc
+          version: ${{ matrix.gcc-version }}
+
+      - name: Install libcurl development library (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev
+
+      - name: Install libcurl development library (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install curl
+
+      - name: Display curl version
+        run: curl --version
+
+      - name: Compile minimal libcurl test
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            gfortran test/test_curl_minimal_standalone.f90 -lcurl -o test_curl_minimal
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            gfortran -I/opt/homebrew/opt/curl/include -L/opt/homebrew/opt/curl/lib \
+                     test/test_curl_minimal_standalone.f90 -lcurl -o test_curl_minimal
+          fi
+
+      - name: Run minimal libcurl test
+        run: ./test_curl_minimal
+
   lint:
     name: Code Quality
     runs-on: ubuntu-latest

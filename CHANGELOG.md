@@ -7,13 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Progress callback support** for HTTP downloads (Linux only)
+  - New `curl_get_to_buffer_with_progress()` function with real-time progress reporting
+  - `curl_progress_callback` abstract interface for user-defined callbacks
+  - Demo application (`app/progress_demo.f90`) showing progress bar implementation
+  - Useful for monitoring large climate data downloads
+
 ### Changed
 
-- **Linux-only support**: Simplified library to Linux-only due to libcurl/Fortran ABI incompatibility on macOS
-  - Removed macOS and Windows from CI workflows
-  - Updated all documentation to state Linux-only support
-  - Removed cross-platform testing complexity
-  - Rationale: Production deployments are Linux-only; libcurl works reliably with Fortran on Linux but has issues on other platforms
+- **Simplified to Linux-focused development**
+  - Removed macOS and Windows from CI workflows (Linux gcc 11, 12, 13 only)
+  - Clarified platform support: Linux for production, macOS/Windows work via subprocess fallbacks
+  - Core S3 operations work on all platforms via automatic fallback chain
+  - Progress callbacks and optimal performance require Linux (libcurl direct binding)
+  - Rationale: Production deployments are Linux-only where full feature support matters
 
 ## [1.1.0] - 2025-10-01
 

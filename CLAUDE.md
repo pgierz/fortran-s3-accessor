@@ -87,7 +87,19 @@ The current simple implementation consists of:
 
 ## Platform Support
 
-**Linux only**. This library uses libcurl through Fortran's C interoperability. While the code compiles on macOS and Windows, there are ABI incompatibility issues with libcurl on non-Linux platforms. All production use should be on Linux.
+**Primary target: Linux** (production ready with full feature support)
+
+The library works on all platforms with automatic fallback:
+- **Linux**: Uses libcurl direct binding (best performance, all features including progress callbacks)
+- **macOS**: Falls back to popen() subprocess streaming (good performance, core operations work)
+- **Windows**: Falls back to temp file method (acceptable performance, core operations work)
+
+**Feature availability:**
+- S3 operations (GET, PUT, DELETE, HEAD): ✅ All platforms
+- Progress callbacks: ✅ Linux only (requires libcurl direct)
+- Zero-copy streaming: ✅ Linux only (requires libcurl direct)
+
+**Recommendation**: Use Linux for production deployments. macOS/Windows suitable for development and testing.
 
 ## Testing
 
@@ -116,7 +128,9 @@ The GitHub Actions CI tests on Linux (ubuntu-latest) with gcc 11, 12, 13
 
 ## Important Notes
 
-- **Linux only** - production use requires Linux environment
+- **Linux recommended for production** - full feature support with optimal performance
+- Works on macOS/Windows with automatic subprocess fallbacks (core operations only)
 - The library is designed for Fortran 2008 compatibility
-- No external dependencies beyond standard Fortran and system curl (Linux)
+- No external dependencies beyond standard Fortran and system curl
 - **URL encoding in S3 keys is currently untested and unsupported** - use simple alphanumeric keys and underscores only
+- **Progress callbacks require Linux** - uses libcurl direct binding which has ABI issues on macOS

@@ -1,6 +1,10 @@
 !> Progress callback demonstration
 !>
-!> Shows real-time download progress with a simple progress bar
+!> Shows real-time download progress with a simple progress bar.
+!>
+!> @note Linux only - requires libcurl direct binding for progress callbacks.
+!>       On macOS/Windows, the library falls back to subprocess methods which
+!>       don't support progress reporting.
 program progress_demo
     use iso_c_binding
     use s3_logger

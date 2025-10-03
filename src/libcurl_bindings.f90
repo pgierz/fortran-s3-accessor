@@ -649,7 +649,9 @@ contains
         end if
 
         ! Pass file unit as user data
-        res = curl_easy_setopt(handle, CURLOPT_WRITEDATA, transfer(file_unit, c_null_ptr))
+        ! Convert file_unit (integer) to c_ptr using proper size conversion
+        res = curl_easy_setopt(handle, CURLOPT_WRITEDATA, &
+            transfer(transfer(file_unit, 0_c_intptr_t), c_null_ptr))
         if (res /= CURLE_OK) then
             call s3_log_error('Failed to set write data')
             close(file_unit)
@@ -707,7 +709,7 @@ contains
         if (total_size == 0) return
 
         ! Convert userdata back to file unit
-        file_unit = transfer(userdata, file_unit)
+        file_unit = transfer(transfer(userdata, 0_c_intptr_t), file_unit)
 
         ! Convert C pointer to Fortran array
         call c_f_pointer(ptr, data, [total_size])

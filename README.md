@@ -2,10 +2,12 @@
 
 A simple Fortran library for S3-compatible object storage access using direct HTTP calls.
 
+**Platform Support**: Linux only. This library uses libcurl through Fortran's C interoperability, which works reliably on Linux but has ABI incompatibility issues on macOS.
+
 ## Features
 
 - **Simple HTTP-based S3 operations**: GET, PUT, DELETE, and HEAD requests
-- **No external dependencies**: Uses only standard Fortran and system curl
+- **No external dependencies**: Uses only standard Fortran and system curl (Linux)
 - **Comprehensive testing**: 22+ test cases with mock-based testing framework
 - **Production ready**: Designed for scientific computing workflows like FESOM
 

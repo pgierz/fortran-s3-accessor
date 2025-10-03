@@ -2,28 +2,16 @@
 
 This directory contains a Python-based mock curl script for testing S3 operations without requiring a real S3 connection.
 
-## Cross-Platform Support
-
-**Scripts:**
-- `curl` (Python script with shebang) - Used on Linux/macOS
-- `curl.bat` (Windows batch wrapper) - Calls Python script on Windows
-
-The mock curl is implemented in Python for maximum portability. All logic is in the Python script; the Windows `.bat` file is just a 2-line wrapper that calls it.
-
 **Requirements:**
-- Python 3.6+ (pre-installed on all GitHub Actions runners)
+- Python 3.6+ (pre-installed on GitHub Actions runners)
 - Uses only standard library (pathlib, shutil, sys)
 - No external dependencies
 
-**Usage (all platforms):**
+**Usage:**
 ```bash
-chmod +x test/scripts/curl  # Linux/macOS only
+chmod +x test/scripts/curl
 PATH="${PWD}/test/scripts:$PATH" fpm test
 ```
-
-**How it works:**
-- **Linux/macOS:** Shell finds `curl` (Python script), executes via shebang
-- **Windows:** Shell finds `curl.bat` first (due to extension priority), which calls Python script
 
 ## How It Works
 
@@ -59,19 +47,16 @@ For HEAD requests, create a file named `head_<key>` with appropriate HTTP header
 ## Implementation Details
 
 The Python script uses:
-- `pathlib.Path` for cross-platform path handling
+- `pathlib.Path` for path handling
 - `shutil.copy` for file operations
 - `sys.exit()` for exit codes matching real curl behavior
 
-This ensures identical behavior across all platforms without platform-specific code.
-
 ## CI Integration
 
-The GitHub Actions CI workflow uses a single unified test command for all platforms:
+The GitHub Actions CI workflow (Linux only):
 
 ```yaml
 - name: Run tests with FPM
-  shell: bash
   run: |
     chmod +x test/scripts/curl
     PATH="${PWD}/test/scripts:$PATH" fpm test --verbose

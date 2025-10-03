@@ -85,12 +85,15 @@ The current simple implementation consists of:
 - **Configuration-Driven**: S3 parameters controlled via `s3_config` type
 - **Stateful Design**: Initialize once with `s3_init()`, then perform operations
 
+## Platform Support
+
+**Linux only**. This library uses libcurl through Fortran's C interoperability. While the code compiles on macOS and Windows, there are ABI incompatibility issues with libcurl on non-Linux platforms. All production use should be on Linux.
+
 ## Testing
 
 The library includes comprehensive testing infrastructure:
 - **test-drive framework**: 22+ test cases covering all operations
 - **Mock testing system**: PATH-based curl mocking for reliable testing
-- **Platform support**: Mock scripts for Linux, macOS, and Windows
 - **Edge case coverage**: Authentication, network failures, malformed responses
 - **Uninitialized state testing**: Separate test executable for proper isolation
 
@@ -98,19 +101,13 @@ The library includes comprehensive testing infrastructure:
 
 ### Running Tests
 
-**All Platforms (Linux / macOS / Windows):**
 ```bash
-# Run tests with Python-based mock curl (required for S3 operation testing)
+# Run tests with mock curl (required for S3 operation testing)
 PATH="test/scripts:$PATH" fpm test
 ```
 
-The mock curl is implemented in Python for cross-platform compatibility.
-
 **CI Testing:**
-The GitHub Actions CI automatically tests on:
-- Linux (ubuntu-latest) with gcc 11, 12, 13
-- macOS (macos-latest) with gcc 12, 13
-- Windows (windows-latest) with gcc 12, 13
+The GitHub Actions CI tests on Linux (ubuntu-latest) with gcc 11, 12, 13
 
 ### Adding New Tests
 1. Add test case to `test/test_s3_http.f90` using test-drive framework
@@ -119,6 +116,7 @@ The GitHub Actions CI automatically tests on:
 
 ## Important Notes
 
+- **Linux only** - production use requires Linux environment
 - The library is designed for Fortran 2008 compatibility
-- No external dependencies beyond standard Fortran and system curl
+- No external dependencies beyond standard Fortran and system curl (Linux)
 - **URL encoding in S3 keys is currently untested and unsupported** - use simple alphanumeric keys and underscores only

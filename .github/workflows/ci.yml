@@ -17,22 +17,13 @@ env:
 
 jobs:
   test-fpm:
-    name: Test with FPM (${{ matrix.os }}, gcc-${{ matrix.gcc-version }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 120
+    name: Test with FPM (gcc-${{ matrix.gcc-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-15-intel, windows-latest]
         gcc-version: [11, 12, 13]
-        exclude:
-          # Reduce matrix size - test key combinations only
-          - os: macos-15-intel
-            gcc-version: 11
-          - os: macos-15-intel
-            gcc-version: 13  # Pre-built FPM binary requires gcc@12 and Intel
-          - os: windows-latest
-            gcc-version: 11
 
     steps:
       - name: Checkout code
@@ -52,43 +43,14 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install libcurl development library
-        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libcurl4-openssl-dev
-
-      - name: Install libcurl development library (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          # curl is pre-installed on macOS, just ensure headers are available
-          brew list --versions curl || brew install curl
-
-      - name: Fix compiler symlinks for Intel macOS
-        if: matrix.os == 'macos-15-intel'
-        run: |
-          # The setup-fortran action incorrectly assumes macOS 15 uses /opt/homebrew (ARM)
-          # On Intel runners, we need /usr/local/bin
-          echo "Fixing compiler symlinks for Intel macOS..."
-
-          # Remove broken symlinks created by setup-fortran
-          sudo rm -f /usr/local/bin/gfortran /usr/local/bin/gcc /usr/local/bin/g++
-
-          # Create correct symlinks to /usr/local/bin (Intel Homebrew location)
-          sudo ln -sf /usr/local/bin/gfortran-12 /usr/local/bin/gfortran
-          sudo ln -sf /usr/local/bin/gcc-12 /usr/local/bin/gcc
-          sudo ln -sf /usr/local/bin/g++-12 /usr/local/bin/g++
-
-          # Verify
-          echo "Verifying gfortran..."
-          which gfortran
-          gfortran --version
-          echo "✓ Compiler symlinks fixed"
 
       - name: Build with FPM
         run: fpm build --verbose
 
       - name: Run tests with FPM
-        shell: bash
         env:
           S3_DISABLE_LIBCURL: 1
         run: |
@@ -99,20 +61,13 @@ jobs:
         run: fpm run --verbose
 
   test-cmake:
-    name: Test with CMake (${{ matrix.os }}, ${{ matrix.build-type }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 120
+    name: Test with CMake (${{ matrix.build-type }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
         build-type: [Debug, Release]
-        exclude:
-          # Reduce matrix - test Release on all, Debug on Linux only
-          - os: macos-latest
-            build-type: Debug
-          - os: windows-latest
-            build-type: Debug
 
     steps:
       - name: Checkout code
@@ -126,22 +81,14 @@ jobs:
           compiler: gcc
           version: 12
 
-      - name: Install libcurl development library (Linux)
-        if: runner.os == 'Linux'
+      - name: Install libcurl development library
         run: |
           sudo apt-get update
           sudo apt-get install -y libcurl4-openssl-dev
 
-      - name: Install libcurl development library (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew list --versions curl || brew install curl
-
       - name: Configure CMake
-        shell: bash
         run: |
           cmake -B build \
-                ${{ runner.os == 'Windows' && '-G "MinGW Makefiles"' || '' }} \
                 -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} \
                 -DCMAKE_Fortran_COMPILER=gfortran
 
@@ -192,53 +139,6 @@ jobs:
       - name: Deploy to GitHub Pages
         if: github.event_name == 'push'
         uses: actions/deploy-pages@v4
-
-  libcurl-minimal-test:
-    name: Minimal libcurl Test (${{ matrix.os }}, gcc-${{ matrix.gcc-version }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        gcc-version: [12, 13]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Setup Fortran
-        uses: fortran-lang/setup-fortran@v1
-        with:
-          compiler: gcc
-          version: ${{ matrix.gcc-version }}
-
-      - name: Install libcurl development library (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev
-
-      - name: Install libcurl development library (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew install curl
-
-      - name: Display curl version
-        run: curl --version
-
-      - name: Compile minimal libcurl test
-        shell: bash
-        run: |
-          if [[ "$RUNNER_OS" == "Linux" ]]; then
-            gfortran test/test_curl_minimal_standalone.f90 -lcurl -o test_curl_minimal
-          elif [[ "$RUNNER_OS" == "macOS" ]]; then
-            gfortran -I/opt/homebrew/opt/curl/include -L/opt/homebrew/opt/curl/lib \
-                     test/test_curl_minimal_standalone.f90 -lcurl -o test_curl_minimal
-          fi
-
-      - name: Run minimal libcurl test
-        run: ./test_curl_minimal
 
   lint:
     name: Code Quality

@@ -14,11 +14,22 @@ module libcurl_bindings
 
     ! Public API
     public :: curl_buffer_t
+    public :: curl_progress_callback
     public :: curl_init
     public :: curl_cleanup
     public :: curl_get_to_buffer
+    public :: curl_get_to_buffer_with_progress
     public :: is_libcurl_available
     public :: get_curl_error_string
+    ! Generic interface and specific setopt functions
+    public :: curl_easy_setopt
+    public :: curl_setopt_string
+    public :: curl_setopt_ptr
+    public :: curl_setopt_funptr
+    public :: curl_setopt_int
+    ! Constants
+    public :: CURLOPT_URL
+    public :: CURLE_OK
 
     !> Maximum size for error message buffer
     integer, parameter :: CURL_ERROR_SIZE = 256
@@ -30,6 +41,9 @@ module libcurl_bindings
     integer(c_int), parameter :: CURLOPT_ERRORBUFFER = 10010
     integer(c_int), parameter :: CURLOPT_FAILONERROR = 45
     integer(c_int), parameter :: CURLOPT_FOLLOWLOCATION = 52
+    integer(c_int), parameter :: CURLOPT_NOPROGRESS = 43
+    integer(c_int), parameter :: CURLOPT_XFERINFOFUNCTION = 20219
+    integer(c_int), parameter :: CURLOPT_XFERINFODATA = 10057
 
     !> libcurl result codes
     integer(c_int), parameter :: CURLE_OK = 0
@@ -40,9 +54,29 @@ module libcurl_bindings
         integer :: size = 0
     end type curl_buffer_t
 
+    !> Progress callback interface
+    !> @param dltotal Total bytes to download (0 if unknown)
+    !> @param dlnow Bytes downloaded so far
+    !> @param ultotal Total bytes to upload (0 if unknown)
+    !> @param ulnow Bytes uploaded so far
+    !> @return 0 to continue, non-zero to abort transfer
+    abstract interface
+        function curl_progress_callback(dltotal, dlnow, ultotal, ulnow) &
+            result(abort) bind(C)
+            import :: c_int64_t
+            integer(c_int64_t), value :: dltotal, dlnow, ultotal, ulnow
+            integer(c_int64_t) :: abort
+        end function curl_progress_callback
+    end interface
+
     !> Module state
     logical, save :: libcurl_loaded = .false.
     logical, save :: libcurl_checked = .false.
+
+    !> Module-level URL buffer - CRITICAL for libcurl pointer lifetime
+    !> libcurl stores pointer, not copy, so memory must persist until curl_easy_perform
+    integer, parameter :: S3_URL_MAXLEN = 8192
+    character(kind=c_char), target, save :: module_url_buffer(S3_URL_MAXLEN)
 
     ! C function interfaces
     interface
@@ -141,22 +175,39 @@ contains
     end function curl_setopt_int
 
     !> Set curl option with string parameter.
+    !> Converts Fortran string to C-compatible null-terminated string using transfer().
     function curl_setopt_string(handle, option, parameter) result(res)
         type(c_ptr), value :: handle
         integer(c_int), value :: option
-        character(len=*, kind=c_char), intent(in) :: parameter
+        character(len=*), intent(in) :: parameter
         integer(c_int) :: res
+        ! Fixed-size array (max URL length 4096) - SAVE to persist across calls
+        character(kind=c_char), target, save :: c_str(4097)
+
         interface
-            function curl_easy_setopt_c(handle, option, parameter) &
+            function curl_easy_setopt_c(handle, option, str_ptr) &
                 bind(C, name="curl_easy_setopt")
-                import :: c_ptr, c_int, c_char
+                import :: c_ptr, c_int
                 type(c_ptr), value :: handle
                 integer(c_int), value :: option
-                character(kind=c_char), dimension(*) :: parameter
+                type(c_ptr), value :: str_ptr  ! C pointer to string
                 integer(c_int) :: curl_easy_setopt_c
             end function curl_easy_setopt_c
         end interface
-        res = curl_easy_setopt_c(handle, option, parameter)
+
+        ! Check length
+        if (len_trim(parameter) > 4096) then
+            call s3_log_error('String too long for curl_setopt_string (max 4096 chars)')
+            res = -1
+            return
+        end if
+
+        ! Convert using transfer intrinsic (cleaner than manual loop)
+        c_str = transfer(trim(parameter) // C_NULL_CHAR, c_str)
+
+        ! Pass pointer to C string
+        res = curl_easy_setopt_c(handle, option, c_loc(c_str))
+
     end function curl_setopt_string
 
     !> Check if libcurl is available on this system.
@@ -332,6 +383,7 @@ contains
         character(len=1024) :: msg
         character(len=512) :: url_truncated
         procedure(write_callback), pointer :: callback_ptr
+        integer :: n
 
         success = .false.
 
@@ -342,8 +394,21 @@ contains
         ! Initialize curl
         if (.not. curl_init(handle)) return
 
-        ! Set URL
-        res = curl_easy_setopt(handle, CURLOPT_URL, trim(url) // C_NULL_CHAR)
+        ! Convert URL to C string with null terminator using module-level buffer
+        ! CRITICAL: Using module_url_buffer ensures memory persists for libcurl
+        n = len_trim(url)
+        if (n >= S3_URL_MAXLEN) then
+            write(msg, '(A,I0,A)') 'URL too long: ', n, ' chars (max 8192)'
+            call s3_log_error(trim(msg))
+            call curl_cleanup(handle)
+            return
+        end if
+        ! Use transfer() to convert to C string
+        module_url_buffer = transfer(trim(url) // C_NULL_CHAR, module_url_buffer)
+
+        ! Set URL using the ptr variant with c_loc() of module buffer
+        res = curl_setopt_ptr(handle, CURLOPT_URL, c_loc(module_url_buffer))
+
         if (res /= CURLE_OK) then
             call s3_log_error('Failed to set URL: ' // trim(url))
             call curl_cleanup(handle)
@@ -396,6 +461,119 @@ contains
         call curl_cleanup(handle)
 
     end function curl_get_to_buffer
+
+    !> Perform HTTP GET with progress reporting.
+    !>
+    !> @param url URL to fetch
+    !> @param buffer Buffer to store response
+    !> @param progress_cb Progress callback function
+    !> @return .true. if successful, .false. on error
+    function curl_get_to_buffer_with_progress(url, buffer, progress_cb) result(success)
+        character(len=*), intent(in) :: url
+        type(curl_buffer_t), intent(out), target :: buffer
+        procedure(curl_progress_callback) :: progress_cb
+        logical :: success
+
+        type(c_ptr) :: handle
+        integer(c_int) :: res
+        character(len=1024) :: msg
+        character(len=512) :: url_truncated
+        procedure(write_callback), pointer :: write_cb_ptr
+        procedure(curl_progress_callback), pointer :: progress_cb_ptr
+        integer :: n
+
+        success = .false.
+
+        ! Initialize buffer
+        if (allocated(buffer%data)) deallocate(buffer%data)
+        buffer%size = 0
+
+        ! Initialize curl
+        if (.not. curl_init(handle)) return
+
+        ! Convert URL to C string with null terminator using module-level buffer
+        ! CRITICAL: Using module_url_buffer ensures memory persists for libcurl
+        n = len_trim(url)
+        if (n >= S3_URL_MAXLEN) then
+            write(msg, '(A,I0,A)') 'URL too long: ', n, ' chars (max 8192)'
+            call s3_log_error(trim(msg))
+            call curl_cleanup(handle)
+            return
+        end if
+        ! Use transfer() to convert to C string
+        module_url_buffer = transfer(trim(url) // C_NULL_CHAR, module_url_buffer)
+
+        ! Set URL using the ptr variant with c_loc() of module buffer
+        res = curl_setopt_ptr(handle, CURLOPT_URL, c_loc(module_url_buffer))
+        if (res /= CURLE_OK) then
+            call s3_log_error('Failed to set URL: ' // trim(url))
+            call curl_cleanup(handle)
+            return
+        end if
+
+        ! Set write callback
+        write_cb_ptr => write_callback
+        res = curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, c_funloc(write_cb_ptr))
+        if (res /= CURLE_OK) then
+            call s3_log_error('Failed to set write callback')
+            call curl_cleanup(handle)
+            return
+        end if
+
+        ! Set write data (our buffer)
+        res = curl_easy_setopt(handle, CURLOPT_WRITEDATA, c_loc(buffer))
+        if (res /= CURLE_OK) then
+            call s3_log_error('Failed to set write data')
+            call curl_cleanup(handle)
+            return
+        end if
+
+        ! Set progress callback
+        progress_cb_ptr => progress_cb
+        res = curl_easy_setopt(handle, CURLOPT_XFERINFOFUNCTION, c_funloc(progress_cb_ptr))
+        if (res /= CURLE_OK) then
+            call s3_log_error('Failed to set progress callback')
+            call curl_cleanup(handle)
+            return
+        end if
+
+        ! Enable progress meter
+        res = curl_easy_setopt(handle, CURLOPT_NOPROGRESS, 0_c_int)
+        if (res /= CURLE_OK) then
+            call s3_log_error('Failed to enable progress')
+            call curl_cleanup(handle)
+            return
+        end if
+
+        ! Set other options
+        res = curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1_c_int)
+        res = curl_easy_setopt(handle, CURLOPT_FAILONERROR, 1_c_int)
+
+        ! Perform the request (truncate URL for logging if too long)
+        if (len_trim(url) > 500) then
+            url_truncated = url(1:497) // '...'
+        else
+            url_truncated = trim(url)
+        end if
+        write(msg, '(A,A)') 'Performing GET request with progress to: ', trim(url_truncated)
+        call s3_log_debug(trim(msg))
+
+        res = curl_easy_perform(handle)
+
+        if (res == CURLE_OK) then
+            success = .true.
+            write(msg, '(A,I0,A)') 'GET request successful, received ', buffer%size, ' bytes'
+            call s3_log_debug(trim(msg))
+        else
+            ! Extract error message
+            write(msg, '(A,A)') 'curl error: ', trim(get_curl_error_string(res))
+            call s3_log_error(trim(msg))
+        end if
+
+        ! Cleanup
+        call curl_cleanup(handle)
+
+    end function curl_get_to_buffer_with_progress
 
     !> Get human-readable error message for curl error code.
     !>

@@ -42,10 +42,10 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install libcurl development library
+      - name: Install dependencies (libcurl, OpenSSL)
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev
 
       - name: Build with FPM
         run: fpm build --verbose
@@ -81,10 +81,10 @@ jobs:
           compiler: gcc
           version: 12
 
-      - name: Install libcurl development library
+      - name: Install dependencies (libcurl, OpenSSL)
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev
 
       - name: Configure CMake
         run: |
@@ -154,10 +154,10 @@ jobs:
           compiler: gcc
           version: 12
 
-      - name: Install libcurl development library
+      - name: Install dependencies (libcurl, OpenSSL)
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev
 
       - name: Check compilation with strict flags
         run: |

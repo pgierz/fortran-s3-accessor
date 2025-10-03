@@ -28,11 +28,27 @@ else()
   set(HAVE_LIBCURL FALSE)
 endif()
 
+# Find OpenSSL (optional - required for AWS authentication)
+find_package(OpenSSL QUIET)
+
+if(OPENSSL_FOUND)
+  message(STATUS "OpenSSL found: ${OPENSSL_LIBRARIES}")
+  set(HAVE_OPENSSL TRUE)
+else()
+  message(STATUS "OpenSSL not found - authentication will be disabled")
+  set(HAVE_OPENSSL FALSE)
+endif()
+
 # Source files - direct implementation (order matters for module dependencies)
 set(LIB_SOURCES
   src/s3_logger.f90
   src/curl_stream.f90
 )
+
+# Add OpenSSL bindings if available (must come before aws_auth)
+if(HAVE_OPENSSL)
+  list(APPEND LIB_SOURCES src/openssl_bindings.f90)
+endif()
 
 # Add libcurl bindings if available (must come before s3_http)
 if(HAVE_LIBCURL)
@@ -58,6 +74,12 @@ if(HAVE_LIBCURL)
   target_include_directories(s3_accessor PRIVATE ${CURL_INCLUDE_DIRS})
 endif()
 
+# Link OpenSSL if available
+if(HAVE_OPENSSL)
+  target_link_libraries(s3_accessor PUBLIC ${OPENSSL_LIBRARIES})
+  target_include_directories(s3_accessor PRIVATE ${OPENSSL_INCLUDE_DIR})
+endif()
+
 # Test executable
 add_executable(s3_test app/test_simple.f90)
 target_link_libraries(s3_test s3_accessor)
@@ -74,6 +96,11 @@ set(MOD_FILES
   ${CMAKE_CURRENT_BINARY_DIR}/s3_http.mod
   ${CMAKE_CURRENT_BINARY_DIR}/s3_io.mod
 )
+
+# Add openssl_bindings.mod if OpenSSL was found
+if(HAVE_OPENSSL)
+  list(APPEND MOD_FILES ${CMAKE_CURRENT_BINARY_DIR}/openssl_bindings.mod)
+endif()
 
 # Add libcurl_bindings.mod if libcurl was found
 if(HAVE_LIBCURL)

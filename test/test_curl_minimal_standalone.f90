@@ -3,6 +3,7 @@
 ! Tests if basic curl_easy_setopt works from Fortran
 program test_curl_minimal_standalone
     use iso_c_binding
+    use iso_fortran_env, only: compiler_version
     implicit none
 
     ! Curl constants

@@ -156,12 +156,12 @@ contains
     !>
     !> @param key HMAC key
     !> @param data Input data to sign
-    !> @param hmac Output HMAC (32 bytes)
+    !> @param result_hmac Output HMAC (32 bytes)
     !> @return .true. if successful, .false. on error
-    function hmac_sha256(key, data, hmac) result(success)
+    function hmac_sha256(key, data, result_hmac) result(success)
         character(len=*), intent(in) :: key
         character(len=*), intent(in) :: data
-        character(len=SHA256_DIGEST_LENGTH), intent(out) :: hmac
+        character(len=SHA256_DIGEST_LENGTH), intent(out) :: result_hmac
         logical :: success
 
         type(c_ptr) :: sha_type, result_ptr
@@ -207,7 +207,7 @@ contains
         if (c_associated(result_ptr)) then
             ! Copy result to output
             do i = 1, SHA256_DIGEST_LENGTH
-                hmac(i:i) = c_hmac(i)
+                result_hmac(i:i) = c_hmac(i)
             end do
             success = .true.
         else

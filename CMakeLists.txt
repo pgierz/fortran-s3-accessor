@@ -48,6 +48,7 @@ set(LIB_SOURCES
 # Add OpenSSL bindings if available (must come before aws_auth)
 if(HAVE_OPENSSL)
   list(APPEND LIB_SOURCES src/openssl_bindings.f90)
+  list(APPEND LIB_SOURCES src/aws_auth.f90)
 endif()
 
 # Add libcurl bindings if available (must come before s3_http)

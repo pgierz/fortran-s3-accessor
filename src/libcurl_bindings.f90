@@ -728,7 +728,8 @@ contains
         type(c_ptr) :: handle, header_list
         integer(c_int) :: res
         procedure(write_callback), pointer :: callback_ptr
-        character(len=:), allocatable :: msg, url_truncated
+        character(len=1024) :: msg
+        character(len=512) :: url_truncated
         integer :: i
         character(kind=c_char), allocatable, target :: c_header(:)
 

@@ -165,9 +165,12 @@ jobs:
                    -fcheck=all -fbacktrace \
                    src/s3_logger.f90 \
                    src/curl_stream.f90 \
+                   src/openssl_bindings.f90 \
+                   src/aws_auth.f90 \
                    src/libcurl_bindings.f90 \
                    src/s3_http.f90 \
-                   src/s3_io.f90
+                   src/s3_io.f90 \
+                   -lssl -lcrypto
 
       - name: Check for TODO/FIXME comments
         run: |
@@ -193,7 +196,7 @@ jobs:
       - name: Install NetCDF and libcurl
         run: |
           sudo apt-get update
-          sudo apt-get install -y libnetcdf-dev libnetcdff-dev libcurl4-openssl-dev
+          sudo apt-get install -y libnetcdf-dev libnetcdff-dev libcurl4-openssl-dev libssl-dev
 
       - name: Verify NetCDF installation
         run: |
@@ -205,10 +208,12 @@ jobs:
           gfortran -o netcdf_example \
             src/s3_logger.f90 \
             src/curl_stream.f90 \
+            src/openssl_bindings.f90 \
+            src/aws_auth.f90 \
             src/libcurl_bindings.f90 \
             src/s3_http.f90 \
             examples/netcdf_minimal.f90 \
-            $(nf-config --fflags) $(nf-config --flibs) -lcurl
+            $(nf-config --fflags) $(nf-config --flibs) -lcurl -lssl -lcrypto
 
       - name: Run NetCDF example
         env:

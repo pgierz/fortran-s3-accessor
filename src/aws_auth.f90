@@ -47,9 +47,11 @@ contains
         logical :: success
 
         character(len=:), allocatable :: canonical_headers, signed_headers
-        character(len=:), allocatable :: canonical_request, canonical_request_hash
+        character(len=:), allocatable :: canonical_request
+        character(len=64) :: canonical_request_hash  ! SHA256 hex output is 64 chars
         character(len=:), allocatable :: date_stamp, credential_scope
-        character(len=:), allocatable :: string_to_sign, signature
+        character(len=:), allocatable :: string_to_sign
+        character(len=:), allocatable :: signature
         character(len=8) :: date_only
 
         ! Extract date from timestamp (first 8 chars: YYYYMMDD)

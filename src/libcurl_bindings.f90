@@ -730,7 +730,7 @@ contains
         procedure(write_callback), pointer :: callback_ptr
         character(len=:), allocatable :: msg, url_truncated
         integer :: i
-        character(kind=c_char), allocatable :: c_header(:)
+        character(kind=c_char), allocatable, target :: c_header(:)
 
         success = .false.
 
@@ -747,7 +747,8 @@ contains
         end if
 
         ! Set URL (using module buffer for lifetime)
-        call store_url_in_module_buffer(url)
+        ! CRITICAL: Using module_url_buffer ensures memory persists for libcurl
+        module_url_buffer = transfer(trim(url) // C_NULL_CHAR, module_url_buffer)
         res = curl_setopt_ptr(handle, CURLOPT_URL, c_loc(module_url_buffer))
         if (res /= CURLE_OK) then
             write(msg, '(A,A)') 'Failed to set URL: ', trim(get_curl_error_string(res))

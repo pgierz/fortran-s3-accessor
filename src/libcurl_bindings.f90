@@ -19,6 +19,7 @@ module libcurl_bindings
     public :: curl_cleanup
     public :: curl_get_to_buffer
     public :: curl_get_to_buffer_with_progress
+    public :: curl_get_to_buffer_with_headers
     public :: curl_get_to_file
     public :: is_libcurl_available
     public :: get_curl_error_string
@@ -45,6 +46,7 @@ module libcurl_bindings
     integer(c_int), parameter :: CURLOPT_NOPROGRESS = 43
     integer(c_int), parameter :: CURLOPT_XFERINFOFUNCTION = 20219
     integer(c_int), parameter :: CURLOPT_XFERINFODATA = 10057
+    integer(c_int), parameter :: CURLOPT_HTTPHEADER = 10023
 
     !> libcurl result codes
     integer(c_int), parameter :: CURLE_OK = 0
@@ -106,6 +108,20 @@ module libcurl_bindings
             integer(c_int), value :: code
             type(c_ptr) :: curl_easy_strerror
         end function curl_easy_strerror
+
+        !> Append a string to a curl slist (linked list of strings for headers)
+        function curl_slist_append(list, string) bind(C, name="curl_slist_append")
+            import :: c_ptr, c_char
+            type(c_ptr), value :: list
+            character(kind=c_char), dimension(*) :: string
+            type(c_ptr) :: curl_slist_append
+        end function curl_slist_append
+
+        !> Free an entire curl slist
+        subroutine curl_slist_free_all(list) bind(C, name="curl_slist_free_all")
+            import :: c_ptr
+            type(c_ptr), value :: list
+        end subroutine curl_slist_free_all
     end interface
 
     !> Generic interface for curl_easy_setopt with different parameter types
@@ -693,6 +709,129 @@ contains
         call curl_cleanup(handle)
 
     end function curl_get_to_file
+
+    !> Perform HTTP GET request with custom headers and return response in buffer.
+    !>
+    !> This function allows adding custom HTTP headers (e.g., Authorization)
+    !> to the request. Useful for authenticated S3 requests.
+    !>
+    !> @param url [in] URL to fetch
+    !> @param buffer [out] Buffer to store response
+    !> @param headers [in] Array of header strings (e.g., "Authorization: AWS4...")
+    !> @return success [logical] True if request succeeded, false otherwise
+    function curl_get_to_buffer_with_headers(url, buffer, headers) result(success)
+        character(len=*), intent(in) :: url
+        type(curl_buffer_t), intent(out) :: buffer
+        character(len=*), intent(in) :: headers(:)
+        logical :: success
+
+        type(c_ptr) :: handle, header_list
+        integer(c_int) :: res
+        procedure(write_callback), pointer :: callback_ptr
+        character(len=:), allocatable :: msg, url_truncated
+        integer :: i
+        character(kind=c_char), allocatable :: c_header(:)
+
+        success = .false.
+
+        ! Initialize buffer
+        buffer%size = 0
+        if (allocated(buffer%data)) deallocate(buffer%data)
+        allocate(character(len=0) :: buffer%data)
+
+        ! Initialize curl
+        handle = curl_easy_init()
+        if (.not. c_associated(handle)) then
+            call s3_log_error('curl_easy_init failed')
+            return
+        end if
+
+        ! Set URL (using module buffer for lifetime)
+        call store_url_in_module_buffer(url)
+        res = curl_setopt_ptr(handle, CURLOPT_URL, c_loc(module_url_buffer))
+        if (res /= CURLE_OK) then
+            write(msg, '(A,A)') 'Failed to set URL: ', trim(get_curl_error_string(res))
+            call s3_log_error(trim(msg))
+            call curl_cleanup(handle)
+            return
+        end if
+
+        ! Set write callback
+        callback_ptr => write_callback
+        res = curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, c_funloc(callback_ptr))
+        if (res /= CURLE_OK) then
+            write(msg, '(A,A)') 'Failed to set write callback: ', trim(get_curl_error_string(res))
+            call s3_log_error(trim(msg))
+            call curl_cleanup(handle)
+            return
+        end if
+
+        ! Set buffer as userdata
+        res = curl_easy_setopt(handle, CURLOPT_WRITEDATA, c_loc(buffer))
+        if (res /= CURLE_OK) then
+            write(msg, '(A,A)') 'Failed to set write data: ', trim(get_curl_error_string(res))
+            call s3_log_error(trim(msg))
+            call curl_cleanup(handle)
+            return
+        end if
+
+        ! Build header list
+        header_list = c_null_ptr
+        do i = 1, size(headers)
+            ! Convert Fortran string to C null-terminated string
+            allocate(c_header(len_trim(headers(i)) + 1))
+            c_header(1:len_trim(headers(i))) = transfer(trim(headers(i)), c_header(1:len_trim(headers(i))))
+            c_header(len_trim(headers(i)) + 1) = c_null_char
+            header_list = curl_slist_append(header_list, c_header)
+            deallocate(c_header)
+        end do
+
+        ! Set HTTP headers if any were added
+        if (c_associated(header_list)) then
+            res = curl_easy_setopt(handle, CURLOPT_HTTPHEADER, header_list)
+            if (res /= CURLE_OK) then
+                write(msg, '(A,A)') 'Failed to set HTTP headers: ', trim(get_curl_error_string(res))
+                call s3_log_error(trim(msg))
+                call curl_slist_free_all(header_list)
+                call curl_cleanup(handle)
+                return
+            end if
+        end if
+
+        ! Set standard curl options
+        res = curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1_c_int)
+        res = curl_easy_setopt(handle, CURLOPT_FAILONERROR, 1_c_int)
+
+        ! Log the request
+        if (len(url) > 100) then
+            url_truncated = url(1:97) // '...'
+        else
+            url_truncated = url
+        end if
+        write(msg, '(A,I0,A,A)') 'GET request with ', size(headers), ' headers to: ', trim(url_truncated)
+        call s3_log_debug(trim(msg))
+
+        ! Perform request
+        res = curl_easy_perform(handle)
+
+        ! Cleanup header list
+        if (c_associated(header_list)) then
+            call curl_slist_free_all(header_list)
+        end if
+
+        if (res == CURLE_OK) then
+            success = .true.
+            write(msg, '(A,I0,A)') 'Received ', buffer%size, ' bytes'
+            call s3_log_debug(trim(msg))
+        else
+            write(msg, '(A,A)') 'curl error: ', trim(get_curl_error_string(res))
+            call s3_log_error(trim(msg))
+        end if
+
+        ! Cleanup
+        call curl_cleanup(handle)
+
+    end function curl_get_to_buffer_with_headers
 
     !> Callback function for writing to file.
     !>

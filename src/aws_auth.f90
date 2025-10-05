@@ -72,7 +72,7 @@ contains
 
         ! Hash the canonical request
         if (.not. sha256_hash(canonical_request, canonical_request_hash)) then
-            call log_error("aws_sign_request: Failed to hash canonical request")
+            call s3_log_error("aws_sign_request: Failed to hash canonical request")
             success = .false.
             return
         end if
@@ -85,7 +85,7 @@ contains
         if (.not. calculate_signature(credentials%secret_key, date_stamp, &
                                      credentials%region, credentials%service, &
                                      string_to_sign, signature)) then
-            call log_error("aws_sign_request: Failed to calculate signature")
+            call s3_log_error("aws_sign_request: Failed to calculate signature")
             success = .false.
             return
         end if
@@ -200,35 +200,35 @@ contains
 
         ! Step 2: kDate = HMAC(kSecret, date_stamp)
         if (.not. hmac_sha256(k_secret, date_stamp, k_date)) then
-            call log_error("calculate_signature: Failed to compute kDate")
+            call s3_log_error("calculate_signature: Failed to compute kDate")
             success = .false.
             return
         end if
 
         ! Step 3: kRegion = HMAC(kDate, region)
         if (.not. hmac_sha256(k_date, region, k_region)) then
-            call log_error("calculate_signature: Failed to compute kRegion")
+            call s3_log_error("calculate_signature: Failed to compute kRegion")
             success = .false.
             return
         end if
 
         ! Step 4: kService = HMAC(kRegion, service)
         if (.not. hmac_sha256(k_region, service, k_service)) then
-            call log_error("calculate_signature: Failed to compute kService")
+            call s3_log_error("calculate_signature: Failed to compute kService")
             success = .false.
             return
         end if
 
         ! Step 5: kSigning = HMAC(kService, "aws4_request")
         if (.not. hmac_sha256(k_service, "aws4_request", k_signing)) then
-            call log_error("calculate_signature: Failed to compute kSigning")
+            call s3_log_error("calculate_signature: Failed to compute kSigning")
             success = .false.
             return
         end if
 
         ! Step 6: signature = hex(HMAC(kSigning, string_to_sign))
         if (.not. hmac_sha256(k_signing, string_to_sign, signature_bytes)) then
-            call log_error("calculate_signature: Failed to compute signature")
+            call s3_log_error("calculate_signature: Failed to compute signature")
             success = .false.
             return
         end if

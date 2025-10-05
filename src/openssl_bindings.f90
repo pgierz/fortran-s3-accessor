@@ -71,7 +71,6 @@ contains
     function is_openssl_available() result(available)
         logical :: available
         type(c_ptr) :: sha_ptr
-        character(len=256) :: msg
 
         if (openssl_checked) then
             available = openssl_loaded

@@ -350,7 +350,6 @@ contains
         character(len=3) :: headers_array(3)  ! Host, X-Amz-Date, Authorization
         type(aws_credential_t) :: creds
         character(len=64) :: payload_hash  ! Empty SHA256
-        integer :: slash_pos
 
         ! Check if authentication is required and available
         use_auth = len_trim(current_config%access_key) > 0 .and. &

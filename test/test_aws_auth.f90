@@ -99,6 +99,10 @@ contains
         character(len=:), allocatable :: auth_header
         logical :: success
 
+        ! Hash of empty payload (for GET request)
+        character(len=*), parameter :: empty_payload_hash = &
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
         print *, "Test: Full signature generation"
 
         ! Setup test credentials
@@ -111,10 +115,6 @@ contains
         creds%secret_key = "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"
         creds%region = "us-east-1"
         creds%service = "s3"
-
-        ! Hash of empty payload (for GET request)
-        character(len=*), parameter :: empty_payload_hash = &
-            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
         ! Generate authorization header for a GET request
         success = aws_sign_request(creds, "GET", "s3.amazonaws.com", &

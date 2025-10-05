@@ -721,7 +721,7 @@ contains
     !> @return success [logical] True if request succeeded, false otherwise
     function curl_get_to_buffer_with_headers(url, buffer, headers) result(success)
         character(len=*), intent(in) :: url
-        type(curl_buffer_t), intent(out) :: buffer
+        type(curl_buffer_t), intent(out), target :: buffer
         character(len=*), intent(in) :: headers(:)
         logical :: success
 

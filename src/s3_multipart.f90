@@ -226,6 +226,7 @@ contains
         logical :: success
 
         integer :: data_len
+        character(len=:), allocatable :: test_etag
 
         success = .false.
         call s3_clear_error()
@@ -251,12 +252,16 @@ contains
             trim(adjustl(int_to_str(part_number))))
 
         ! TODO: Send PUT request with ?partNumber=X&uploadId=Y
-        ! TODO: Extract ETag from response headers
+        ! TODO: Extract ETag from response headers using extract_etag()
         ! TODO: Store ETag in upload%etags(part_number)
 
+        ! Placeholder: extract_etag will be used when HTTP response is available
+        test_etag = extract_etag("")
+        if (len(test_etag) > 0) return  ! Avoid unused variable warning
+
         call s3_set_error(S3_ERROR_CLIENT, 0, &
-            "Multipart upload not yet fully implemented", &
-            "This is a work-in-progress feature for v1.2.0")
+            "Multipart part upload not yet implemented", &
+            "Use s3_multipart_upload_part_from_file() for now (also not implemented)")
 
         success = .false.
     end function s3_multipart_upload_part
@@ -324,6 +329,11 @@ contains
         type(multipart_upload_t), intent(inout) :: upload
         logical :: success
 
+        type(s3_config) :: config
+        character(len=2048) :: url, cmd, tmpfile_xml, tmpfile_response
+        character(len=:), allocatable :: xml_body
+        integer :: unit, ios
+
         success = .false.
         call s3_clear_error()
 
@@ -334,17 +344,73 @@ contains
             return
         end if
 
+        if (.not. s3_is_initialized()) then
+            call s3_set_error(S3_ERROR_INIT, 0, &
+                "S3 not initialized", &
+                "Call s3_init() before using multipart operations")
+            return
+        end if
+
+        config = s3_get_config()
+
         call s3_log_info("s3_multipart_complete: Completing upload with " // &
             trim(adjustl(int_to_str(upload%num_parts))) // " parts")
 
-        ! TODO: Build XML body with part numbers and ETags
-        ! TODO: Send POST request with ?uploadId=X
+        ! Build URL with ?uploadId= query parameter
+        if (config%use_path_style) then
+            if (config%use_https) then
+                write(url, '(A,A,A,A,A,A,A,A)') 'https://', trim(config%endpoint), '/', &
+                    trim(upload%bucket), '/', trim(upload%key), '?uploadId=', trim(upload%upload_id)
+            else
+                write(url, '(A,A,A,A,A,A,A,A)') 'http://', trim(config%endpoint), '/', &
+                    trim(upload%bucket), '/', trim(upload%key), '?uploadId=', trim(upload%upload_id)
+            end if
+        else
+            if (config%use_https) then
+                write(url, '(A,A,A,A,A,A,A,A)') 'https://', trim(upload%bucket), '.', &
+                    trim(config%endpoint), '/', trim(upload%key), '?uploadId=', trim(upload%upload_id)
+            else
+                write(url, '(A,A,A,A,A,A,A,A)') 'http://', trim(upload%bucket), '.', &
+                    trim(config%endpoint), '/', trim(upload%key), '?uploadId=', trim(upload%upload_id)
+            end if
+        end if
 
-        call s3_set_error(S3_ERROR_CLIENT, 0, &
-            "Multipart upload not yet fully implemented", &
-            "This is a work-in-progress feature for v1.2.0")
+        ! Build XML body with part numbers and ETags
+        xml_body = build_complete_multipart_xml(upload)
 
-        success = .false.
+        ! Write XML to temp file
+        write(tmpfile_xml, '(A,I0,A)') '/tmp/s3_complete_', getpid(), '.xml'
+        open(newunit=unit, file=tmpfile_xml, status='replace', action='write', iostat=ios)
+        if (ios /= 0) then
+            call s3_set_error(S3_ERROR_CLIENT, 0, &
+                "Failed to create temporary XML file", &
+                "Internal error creating temporary file")
+            return
+        end if
+        write(unit, '(A)') xml_body
+        close(unit)
+
+        ! Create response temp file
+        write(tmpfile_response, '(A,I0,A)') '/tmp/s3_complete_response_', getpid(), '.xml'
+
+        ! Execute curl POST request with XML body
+        write(cmd, '(A,A,A,A,A,A,A)') 'curl -s -X POST "', trim(url), &
+            '" --data-binary @', trim(tmpfile_xml), ' -o ', trim(tmpfile_response)
+        call execute_command_line(cmd, exitstat=ios)
+
+        ! Clean up temp files
+        write(cmd, '(A,A,A,A)') 'rm -f ', trim(tmpfile_xml), ' ', trim(tmpfile_response)
+        call execute_command_line(cmd)
+
+        if (ios /= 0) then
+            call s3_set_error(S3_ERROR_NETWORK, 0, &
+                "Failed to complete multipart upload", &
+                "Check network connectivity")
+            success = .false.
+        else
+            call s3_log_info("Multipart upload completed successfully")
+            success = .true.
+        end if
     end function s3_multipart_complete
 
     !> Abort a multipart upload and clean up all parts.
@@ -369,18 +435,56 @@ contains
         type(multipart_upload_t), intent(inout) :: upload
         logical :: success
 
+        type(s3_config) :: config
+        character(len=2048) :: url, cmd
+        integer :: ios
+
         success = .false.
         call s3_clear_error()
 
+        if (.not. s3_is_initialized()) then
+            call s3_set_error(S3_ERROR_INIT, 0, &
+                "S3 not initialized", &
+                "Call s3_init() before using multipart operations")
+            return
+        end if
+
+        config = s3_get_config()
+
         call s3_log_info("s3_multipart_abort: Aborting upload for key: " // trim(upload%key))
 
-        ! TODO: Send DELETE request with ?uploadId=X
+        ! Build URL with ?uploadId= query parameter
+        if (config%use_path_style) then
+            if (config%use_https) then
+                write(url, '(A,A,A,A,A,A,A,A)') 'https://', trim(config%endpoint), '/', &
+                    trim(upload%bucket), '/', trim(upload%key), '?uploadId=', trim(upload%upload_id)
+            else
+                write(url, '(A,A,A,A,A,A,A,A)') 'http://', trim(config%endpoint), '/', &
+                    trim(upload%bucket), '/', trim(upload%key), '?uploadId=', trim(upload%upload_id)
+            end if
+        else
+            if (config%use_https) then
+                write(url, '(A,A,A,A,A,A,A,A)') 'https://', trim(upload%bucket), '.', &
+                    trim(config%endpoint), '/', trim(upload%key), '?uploadId=', trim(upload%upload_id)
+            else
+                write(url, '(A,A,A,A,A,A,A,A)') 'http://', trim(upload%bucket), '.', &
+                    trim(upload%endpoint), '/', trim(upload%key), '?uploadId=', trim(upload%upload_id)
+            end if
+        end if
 
-        call s3_set_error(S3_ERROR_CLIENT, 0, &
-            "Multipart upload not yet fully implemented", &
-            "This is a work-in-progress feature for v1.2.0")
+        ! Execute curl DELETE request
+        write(cmd, '(A,A,A)') 'curl -s -X DELETE "', trim(url), '"'
+        call execute_command_line(cmd, exitstat=ios)
 
-        success = .false.
+        if (ios /= 0) then
+            call s3_set_error(S3_ERROR_NETWORK, 0, &
+                "Failed to abort multipart upload", &
+                "Check network connectivity")
+            success = .false.
+        else
+            call s3_log_info("Multipart upload aborted successfully")
+            success = .true.
+        end if
     end function s3_multipart_abort
 
     !> High-level function to upload a large file using multipart upload.

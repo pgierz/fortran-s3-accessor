@@ -221,9 +221,9 @@ All unit tests use **mock curl responses** for fast, reliable testing without ne
 
 - `basic_addition` - Sanity check to validate test-drive framework is working
 
-### Integration Tests (6 tests)
+### Integration Tests (8 tests)
 
-Integration tests run against **real S3 services** (not mocks) to validate end-to-end functionality.
+Integration tests run against **real S3 services** (not mocks) to validate end-to-end functionality. **All integration tests now run automatically in CI** with every commit!
 
 #### ✅ Runs in CI (Every Build)
 
@@ -234,47 +234,60 @@ Integration tests run against **real S3 services** (not mocks) to validate end-t
    - Tests dimensions, variables, and attributes
    - **CI Job:** `NetCDF Integration Example (optional)`
 
-**2. Authentication Demo (`app/auth_demo.f90`)**
-   - Public ESGF bucket access (unauthenticated)
-   - AWS Signature v4 header generation (example credentials)
-   - MinIO/LocalStack configuration examples
-   - **CI Job:** Runs via `fpm run --verbose`
-
-#### 📋 Manual Integration Tests
-
-**3. Simple S3 Operations (`app/test_simple.f90`)**
-   - `s3_object_exists()` - Check if AWI climate NetCDF file exists
+**2. Simple S3 Operations (`app/test_simple.f90`)**
+   - `s3_object_exists()` - Check if AWI climate NetCDF file exists on ESGF
    - `s3_get_object()` - Download small test file from ESGF
    - `s3_open()/s3_read_line()/s3_close()` - Fortran I/O interface
+   - **CI Job:** `Integration Tests (Real S3 + MinIO)`
 
-**4. Streaming Performance (`app/test_streaming.f90`)**
+**3. Streaming Performance (`app/test_streaming.f90`)**
    - Detects platform capabilities (`is_streaming_available()`)
-   - Downloads real S3 data with debug logging
+   - Downloads real S3 data with debug logging from ESGF
    - Counts temp files to verify zero-copy streaming
    - Compares streaming vs temp file fallback performance
+   - **CI Job:** `Integration Tests (Real S3 + MinIO)`
 
-**5. Direct File Download (`app/file_download_demo.f90`)** - Linux only
+**4. Direct File Download (`app/file_download_demo.f90`)** - Linux only
    - Tests libcurl direct-to-file streaming
    - Downloads from `httpbin.org` test endpoint
    - Verifies zero memory buffering (streams to disk)
-   - Skips gracefully on macOS (libcurl compatibility)
+   - **CI Job:** `Integration Tests (Real S3 + MinIO)`
 
-**6. Progress Callbacks (`app/progress_demo.f90`)** - Linux only
+**5. Progress Callbacks (`app/progress_demo.f90`)** - Linux only
    - Real-time download progress tracking
    - Progress bar, percentage, speed, ETA display
    - Validates callback cancellation support
-   - Requires direct libcurl binding (Linux only)
+   - **CI Job:** `Integration Tests (Real S3 + MinIO)`
+
+**6. Authentication Demo (`app/auth_demo.f90`)**
+   - Public ESGF bucket access (unauthenticated)
+   - AWS Signature v4 header generation (example credentials)
+   - MinIO/LocalStack configuration examples
+   - **CI Job:** `Integration Tests (Real S3 + MinIO)` + `fpm run --verbose`
+
+**7. MinIO Dedicated Test (`app/test_minio.f90`)**
+   - Tests authenticated access to MinIO (localhost:9000)
+   - Validates AWS Signature v4 with MinIO
+   - Downloads small text files, nested paths, and ~1MB binary files
+   - Tests `s3_object_exists()`, `s3_get_object()`, and `s3_open()/read/close`
+   - **CI Job:** `Integration Tests (Real S3 + MinIO)`
+
+**8. MinIO Service (automated in CI)**
+   - MinIO service container running in CI
+   - Bucket creation and test data upload via MinIO client (`mc`)
+   - Test data: small/medium files, multiline text, nested paths
+   - **CI Job:** `Integration Tests (Real S3 + MinIO)`
 
 ### Test Coverage Summary
 
 **Unit Tests (27):** ✅ Core S3 operations, authentication, protocols, edge cases, error handling
-**Integration Tests (6):** ✅ Real ESGF S3 data, NetCDF workflows, streaming, progress tracking
+**Integration Tests (8):** ✅ Real ESGF S3 data, NetCDF workflows, MinIO authenticated access, streaming, progress tracking
 **CI Coverage:** ✅ Runs on every commit with gcc 11, 12, 13 on Linux
-**Test Data:** ESGF CMIP6 climate data, httpbin.org test endpoints
+**Test Services:** ESGF CMIP6 climate data, httpbin.org endpoints, MinIO container (localhost)
 
 **Total Coverage:**
 - S3 operations (GET, PUT, DELETE, HEAD)
-- AWS Signature v4 authentication
+- AWS Signature v4 authentication (AWS S3 + MinIO)
 - HTTP/HTTPS protocols
 - Virtual-hosted and path-style URLs
 - S3 URI parsing (`s3://bucket/key`)
@@ -283,6 +296,7 @@ Integration tests run against **real S3 services** (not mocks) to validate end-t
 - NetCDF integration workflows
 - Zero-copy streaming validation
 - Progress callback functionality
+- S3-compatible services (MinIO/LocalStack)
 
 ## Documentation
 

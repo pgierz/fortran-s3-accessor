@@ -1,0 +1,418 @@
+<!-- -*- mode: jinja2 -*- -->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+      <meta name="description" content="Fortran library providing S3-compatible object storage access with familiar I/O interfaces">
+    <meta name="author" content="Paul Gierz" >
+    <link rel="icon" href="../favicon.png">
+
+    <title>s3_init &ndash; fortran-s3-accessor</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <!-- Font Awesome -->
+    <link href="../css/fontawesome.min.css" rel="stylesheet">
+    <link href="../css/brands.min.css" rel="stylesheet">
+    <link href="../css/regular.min.css" rel="stylesheet">
+    <link href="../css/solid.min.css" rel="stylesheet">
+    <link href="../css/v4-font-face.min.css" rel="stylesheet">
+    <link href="../css/v4-shims.min.css" rel="stylesheet">
+    <!-- MathJax -->
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        TeX: { equationNumbers: { autoNumber: "AMS" } }
+      });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML" async
+            integrity="sha256-DViIOMYdwlM/axqoGDPeUyf0urLoHMN4QACBKyB58Uw=" crossorigin="anonymous"></script>
+    <!-- Other scripts and stylesheets -->
+    <link href="../css/local.css" rel="stylesheet">
+    <link href="../css/pygments.css" rel="stylesheet">
+    <script src="../js/svg-pan-zoom.min.js"></script>
+  </head>
+
+  <body>
+
+    <!-- Fixed navbar -->
+    <div class="container-fluid mb-sm-4 mb-xl-2">
+      <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container">
+          <a class="navbar-brand" href="../index.html">fortran-s3-accessor </a>
+          <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar"
+                  aria-expanded="false" aria-controls="navbar" aria-label="Toggle navigation">
+                  <span class="navbar-toggler-icon">
+          </button>
+
+          <div id="navbar" class="navbar-collapse collapse">
+            <ul class="navbar-nav">
+                  <li class="nav-item">
+                    <a class="nav-link" href="../lists/files.html">Source Files</a>
+                  </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="../lists/modules.html">Modules</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="../lists/procedures.html">Procedures</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="../lists/types.html">Derived Types</a>
+                </li>
+            </ul>
+              <div class="d-flex align-items-end flex-grow-1">
+                <form action="../search.html" role="search" class="ms-auto">
+                  <input type="text" class="form-control" aria-label="Search" placeholder="Search" name="q" id="tipue_search_input" autocomplete="off" required>
+                </form>
+              </div>
+          </div><!--/.nav-collapse -->
+        </div>
+      </nav>
+    </div>
+
+    <div class="container">
+  <div class="row">
+    <h1>s3_init
+      <small>Subroutine</small>
+      
+    </h1>
+      <div class="container p-2 mb-4 bg-light border rounded-3">
+    <div class="row align-items-center justify-content-between" id="info-bar">
+      <div class="col">
+        <ul class="list-inline" style="margin-bottom:0px;display:inline">
+            <li class="list-inline-item" id="meta-license"><i class="fa fa-legal"></i> <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/80x15.png" /></a></li>
+
+            <li class="list-inline-item" id="statements"><i class="fa fa-list-ol"></i>
+              <a data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-html="true"
+                 title=" 1.3% of total for procedures.">5 statements</a>
+            </li>
+
+            <li class="list-inline-item" id="source-file">
+              <i class="fa fa-code"></i>
+              <a href="../src/s3_http.f90"> Source File</a>
+            </li>
+        </ul>
+      </div>
+      <div class="col">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb justify-content-end mb-0">
+                <li class="breadcrumb-item"><a href='../sourcefile/s3_http.f90.html'>s3_http.f90</a></li>
+                <li class="breadcrumb-item"><a href='../module/s3_http.html'>s3_http</a></li>
+            <li class="breadcrumb-item active" aria-current="page">s3_init</li>
+          </ol>
+        </nav>
+      </div>
+    </div>
+  </div>
+  <script>
+    // Enable Bootstrap tooltips
+    (function () {
+      const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+      const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+    })();
+  </script>
+
+  </div>
+  
+  <div class="row">
+    <div class="col-md-3 hidden-xs hidden-sm visible-md visible-lg">
+      <div id="sidebar">
+      <h3>Contents</h3>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+    <div class="card card-primary">
+      <div class="card-header text-left"><h3 class="card-title">Source Code</h3></div>
+      <div class="list-group">
+        <a class="list-group-item" href="../proc/s3_init.html#src">s3_init</a>
+      </div>
+    </div>
+
+
+  </div>
+
+    </div>
+    
+    <div class="col-md-9" id='text'>
+    <h2>public  subroutine s3_init(config)  
+</h2>
+    
+
+    <p>Initialize the S3 HTTP module with configuration.</p>
+<p>This subroutine must be called before any S3 operations can be performed.
+It stores the provided configuration for use by all subsequent operations.</p>
+<p>@param[in] config S3 configuration containing bucket, endpoint, and credentials</p>
+<h2>Example</h2>
+<div class="codehilite"><pre><span></span><code><span class="k">type</span><span class="p">(</span><span class="n">s3_config</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">config</span>
+<span class="n">config</span><span class="p">%</span><span class="n">bucket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;my-bucket&#39;</span>
+<span class="n">config</span><span class="p">%</span><span class="n">region</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;us-east-1&#39;</span>
+<span class="n">config</span><span class="p">%</span><span class="n">use_https</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">.</span><span class="n">true</span><span class="p">.</span>
+<span class="k">call </span><span class="n">s3_init</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+</code></pre></div>
+
+
+    <h3>Arguments</h3>
+        <table class="table table-striped varlist">
+    <thead>
+      <tr>
+        <th scope="col">Type</th>
+<th scope="col">Intent</th><th scope="col">Optional</th>        <th scope="col">Attributes</th>
+        <th scope="col"></th>
+        <th scope="col">Name</th>
+        <th scope="col"></th>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+              <span class="anchor" id="variable-config"></span>
+              type(<a href='../type/s3_config.html'>s3_config</a>),
+            </td>
+<td>intent(in)</td>
+              <td></td>            <td>
+              
+            </td>
+            <td>::</td>
+            <td><strong>config</strong></td>
+            <td>
+                
+            </td>
+        </tr>
+    </tbody>
+  </table>
+
+    <br>
+    <div class="card">
+      <div class="card-header">
+  <h3 class="card-title">Called by</h3>
+      </div>
+      <div class="card-body">
+  <div class="depgraph"><?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+ "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Generated by graphviz version 13.1.2 (20250808.2320)
+ -->
+<!-- Title: proc~~s3_init~~CalledByGraph Pages: 1 -->
+<svg id="procs3_initCalledByGraph" width="174pt" height="154pt"
+ viewBox="0.00 0.00 174.00 154.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="proc~~s3_init~~CalledByGraph" class="graph" transform="scale(1 1) rotate(0) translate(4 149.77)">
+<title>proc~~s3_init~~CalledByGraph</title>
+<polygon fill="white" stroke="none" points="-4,4 -4,-149.77 170.02,-149.77 170.02,4 -4,4"/>
+<!-- proc~s3_init -->
+<g id="proc~~s3_init~~CalledByGraph_node1" class="node">
+<title>proc~s3_init</title>
+<polygon fill="none" stroke="black" points="166.02,-83.77 112.02,-83.77 112.02,-61 166.02,-61 166.02,-83.77"/>
+<text xml:space="preserve" text-anchor="middle" x="139.02" y="-68.04" font-family="Helvetica,sans-Serif" font-size="10.50">s3_init</text>
+</g>
+<!-- proc~s3_delete_uri -->
+<g id="proc~~s3_init~~CalledByGraph_node2" class="node">
+<title>proc~s3_delete_uri</title>
+<g id="a_proc~~s3_init~~CalledByGraph_node2"><a xlink:href="../proc/s3_delete_uri.html" xlink:title="s3_delete_uri">
+<polygon fill="#d94e8f" stroke="#d94e8f" points="76.02,-145.77 0,-145.77 0,-123 76.02,-123 76.02,-145.77"/>
+<text xml:space="preserve" text-anchor="middle" x="38.01" y="-130.03" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">s3_delete_uri</text>
+</a>
+</g>
+</g>
+<!-- proc~s3_delete_uri&#45;&gt;proc~s3_init -->
+<g id="proc~~s3_init~~CalledByGraph_edge1" class="edge">
+<title>proc~s3_delete_uri&#45;&gt;proc~s3_init</title>
+<path fill="none" stroke="#000000" d="M60.29,-122.64C65.48,-119.68 70.98,-116.48 76.02,-113.39 87.81,-106.15 100.6,-97.79 111.48,-90.51"/>
+<polygon fill="#000000" stroke="#000000" points="113.26,-93.53 119.6,-85.04 109.35,-87.72 113.26,-93.53"/>
+</g>
+<!-- proc~s3_exists_uri -->
+<g id="proc~~s3_init~~CalledByGraph_node3" class="node">
+<title>proc~s3_exists_uri</title>
+<g id="a_proc~~s3_init~~CalledByGraph_node3"><a xlink:href="../proc/s3_exists_uri.html" xlink:title="s3_exists_uri">
+<polygon fill="#d94e8f" stroke="#d94e8f" points="74.89,-104.77 1.12,-104.77 1.12,-82 74.89,-82 74.89,-104.77"/>
+<text xml:space="preserve" text-anchor="middle" x="38.01" y="-89.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">s3_exists_uri</text>
+</a>
+</g>
+</g>
+<!-- proc~s3_exists_uri&#45;&gt;proc~s3_init -->
+<g id="proc~~s3_init~~CalledByGraph_edge2" class="edge">
+<title>proc~s3_exists_uri&#45;&gt;proc~s3_init</title>
+<path fill="none" stroke="#000000" d="M75.32,-85.68C83.49,-83.95 92.19,-82.11 100.42,-80.36"/>
+<polygon fill="#000000" stroke="#000000" points="101.1,-83.79 110.16,-78.29 99.65,-76.95 101.1,-83.79"/>
+</g>
+<!-- proc~s3_get_uri -->
+<g id="proc~~s3_init~~CalledByGraph_node4" class="node">
+<title>proc~s3_get_uri</title>
+<g id="a_proc~~s3_init~~CalledByGraph_node4"><a xlink:href="../proc/s3_get_uri.html" xlink:title="s3_get_uri">
+<polygon fill="#d94e8f" stroke="#d94e8f" points="68.89,-63.77 7.12,-63.77 7.12,-41 68.89,-41 68.89,-63.77"/>
+<text xml:space="preserve" text-anchor="middle" x="38.01" y="-48.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">s3_get_uri</text>
+</a>
+</g>
+</g>
+<!-- proc~s3_get_uri&#45;&gt;proc~s3_init -->
+<g id="proc~~s3_init~~CalledByGraph_edge3" class="edge">
+<title>proc~s3_get_uri&#45;&gt;proc~s3_init</title>
+<path fill="none" stroke="#000000" d="M69.25,-58.49C79.09,-60.48 90.12,-62.71 100.43,-64.79"/>
+<polygon fill="#000000" stroke="#000000" points="99.67,-68.21 110.16,-66.76 101.05,-61.35 99.67,-68.21"/>
+</g>
+<!-- proc~s3_put_uri -->
+<g id="proc~~s3_init~~CalledByGraph_node5" class="node">
+<title>proc~s3_put_uri</title>
+<g id="a_proc~~s3_init~~CalledByGraph_node5"><a xlink:href="../proc/s3_put_uri.html" xlink:title="s3_put_uri">
+<polygon fill="#d94e8f" stroke="#d94e8f" points="68.89,-22.77 7.12,-22.77 7.12,0 68.89,0 68.89,-22.77"/>
+<text xml:space="preserve" text-anchor="middle" x="38.01" y="-7.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">s3_put_uri</text>
+</a>
+</g>
+</g>
+<!-- proc~s3_put_uri&#45;&gt;proc~s3_init -->
+<g id="proc~~s3_init~~CalledByGraph_edge4" class="edge">
+<title>proc~s3_put_uri&#45;&gt;proc~s3_init</title>
+<path fill="none" stroke="#000000" d="M60.27,-23.17C65.45,-26.12 70.96,-29.32 76.02,-32.39 87.6,-39.4 100.18,-47.43 110.96,-54.46"/>
+<polygon fill="#000000" stroke="#000000" points="108.73,-57.18 119.02,-59.73 112.57,-51.32 108.73,-57.18"/>
+</g>
+</g>
+</svg>
+</div>          <div>
+            <a type="button" class="graph-help" data-bs-toggle="modal" href="#CalledByGraph-help-text">Help</a>
+          </div>
+          <div class="modal fade" id="CalledByGraph-help-text" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-lg" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h4 class="modal-title" id="-graph-help-label">Graph Key</h4>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+<p>Nodes of different colours represent the following: </p>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+ "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Generated by graphviz version 13.1.2 (20250808.2320)
+ -->
+<!-- Title: Graph Key Pages: 1 -->
+<svg width="641pt" height="28pt"
+ viewBox="0.00 0.00 641.00 28.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(0.923937 0.923937) rotate(0) translate(4 26.77)">
+<title>Graph Key</title>
+<polygon fill="white" stroke="none" points="-4,4 -4,-26.77 689.77,-26.77 689.77,4 -4,4"/>
+<!-- Subroutine -->
+<g id="node1" class="node">
+<title>Subroutine</title>
+<polygon fill="#d9534f" stroke="#d9534f" points="63.27,-22.77 0,-22.77 0,0 63.27,0 63.27,-22.77"/>
+<text xml:space="preserve" text-anchor="middle" x="31.64" y="-7.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">Subroutine</text>
+</g>
+<!-- Function -->
+<g id="node2" class="node">
+<title>Function</title>
+<polygon fill="#d94e8f" stroke="#d94e8f" points="135.63,-22.77 81.64,-22.77 81.64,0 135.63,0 135.63,-22.77"/>
+<text xml:space="preserve" text-anchor="middle" x="108.64" y="-7.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">Function</text>
+</g>
+<!-- Interface -->
+<g id="node3" class="node">
+<title>Interface</title>
+<polygon fill="#a7506f" stroke="#a7506f" points="207.63,-22.77 153.63,-22.77 153.63,0 207.63,0 207.63,-22.77"/>
+<text xml:space="preserve" text-anchor="middle" x="180.63" y="-7.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">Interface</text>
+</g>
+<!-- Type Bound Procedure -->
+<g id="node4" class="node">
+<title>Type Bound Procedure</title>
+<polygon fill="#a7506f" stroke="#a7506f" points="347.14,-22.77 226.12,-22.77 226.12,0 347.14,0 347.14,-22.77"/>
+<text xml:space="preserve" text-anchor="middle" x="286.63" y="-7.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">Type Bound Procedure</text>
+</g>
+<!-- Unknown Procedure Type -->
+<g id="node5" class="node">
+<title>Unknown Procedure Type</title>
+<polygon fill="#777777" stroke="#777777" points="499.89,-22.77 365.38,-22.77 365.38,0 499.89,0 499.89,-22.77"/>
+<text xml:space="preserve" text-anchor="middle" x="432.63" y="-7.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">Unknown Procedure Type</text>
+</g>
+<!-- Program -->
+<g id="node6" class="node">
+<title>Program</title>
+<polygon fill="#f0ad4e" stroke="#f0ad4e" points="571.63,-22.77 517.63,-22.77 517.63,0 571.63,0 571.63,-22.77"/>
+<text xml:space="preserve" text-anchor="middle" x="544.63" y="-7.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">Program</text>
+</g>
+<!-- This Page&#39;s Entity -->
+<g id="node7" class="node">
+<title>This Page&#39;s Entity</title>
+<polygon fill="none" stroke="black" points="685.77,-22.77 589.5,-22.77 589.5,0 685.77,0 685.77,-22.77"/>
+<text xml:space="preserve" text-anchor="middle" x="637.63" y="-7.04" font-family="Helvetica,sans-Serif" font-size="10.50">This Page&#39;s Entity</text>
+</g>
+</g>
+</svg>
+
+<p>Solid arrows point from a procedure to one which it calls. Dashed 
+arrows point from an interface to procedures which implement that interface.
+This could include the module procedures in a generic interface or the
+implementation in a submodule of an interface in a parent module.
+</p>
+ </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <br>
+
+
+    
+    
+
+    
+    
+
+
+
+    
+    <section>
+    <h2><span class="anchor" id="src"></span>Source Code</h2>
+    <div class="hl codehilite"><pre><span></span><span class="w">    </span><span class="k">subroutine </span><span class="n">s3_init</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<span class="w">        </span><span class="k">type</span><span class="p">(</span><span class="n">s3_config</span><span class="p">),</span><span class="w"> </span><span class="k">intent</span><span class="p">(</span><span class="n">in</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">config</span>
+<span class="w">        </span><span class="n">current_config</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">config</span>
+<span class="w">        </span><span class="n">initialized</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">.</span><span class="n">true</span><span class="p">.</span>
+<span class="w">    </span><span class="k">end subroutine </span><span class="n">s3_init</span>
+</pre></div>
+
+    </section>
+    <br>
+    
+    </div>
+  </div>
+
+      <hr>
+    </div> <!-- /container -->
+    <footer>
+      <div class="container">
+        <div class="row justify-content-between">
+          <div class="col">
+            <p>
+              fortran-s3-accessor
+ was developed by Paul Gierz<br>              &copy; 2025 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/80x15.png" /></a>
+</p>
+          </div>
+          <div class="col">
+            <p class="text-end">
+              Documentation generated by
+              <a href="https://github.com/Fortran-FOSS-Programmers/ford">FORD</a>
+            </p>
+          </div>
+        </div>
+        <br>
+      </div> <!-- /container -->
+    </footer>
+  </body>
+</html>

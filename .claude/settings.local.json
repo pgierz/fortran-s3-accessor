@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(gh run list:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh run view:*)",
+      "WebSearch",
+      "Read(//Users/pgierz/Code/github.com/pgierz/fortran-s3-netcdf/**)",
+      "Bash(gh issue view:*)",
+      "Bash(git checkout:*)",
+      "Bash(gh pr create:*)",
+      "Bash(fpm build:*)",
+      "Bash(fpm run:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

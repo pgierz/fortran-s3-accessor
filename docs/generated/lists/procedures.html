@@ -1,0 +1,525 @@
+<!-- -*- mode: jinja2 -*- -->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+      <meta name="description" content="Fortran library providing S3-compatible object storage access with familiar I/O interfaces">
+    <meta name="author" content="Paul Gierz" >
+    <link rel="icon" href="../favicon.png">
+
+    <title>All Procedures &ndash; fortran-s3-accessor
+</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <!-- Font Awesome -->
+    <link href="../css/fontawesome.min.css" rel="stylesheet">
+    <link href="../css/brands.min.css" rel="stylesheet">
+    <link href="../css/regular.min.css" rel="stylesheet">
+    <link href="../css/solid.min.css" rel="stylesheet">
+    <link href="../css/v4-font-face.min.css" rel="stylesheet">
+    <link href="../css/v4-shims.min.css" rel="stylesheet">
+    <!-- MathJax -->
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        TeX: { equationNumbers: { autoNumber: "AMS" } }
+      });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML" async
+            integrity="sha256-DViIOMYdwlM/axqoGDPeUyf0urLoHMN4QACBKyB58Uw=" crossorigin="anonymous"></script>
+    <!-- Other scripts and stylesheets -->
+    <link href="../css/local.css" rel="stylesheet">
+    <link href="../css/pygments.css" rel="stylesheet">
+    <script src="../js/svg-pan-zoom.min.js"></script>
+  </head>
+
+  <body>
+
+    <!-- Fixed navbar -->
+    <div class="container-fluid mb-sm-4 mb-xl-2">
+      <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container">
+          <a class="navbar-brand" href="../index.html">fortran-s3-accessor </a>
+          <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar"
+                  aria-expanded="false" aria-controls="navbar" aria-label="Toggle navigation">
+                  <span class="navbar-toggler-icon">
+          </button>
+
+          <div id="navbar" class="navbar-collapse collapse">
+            <ul class="navbar-nav">
+                  <li class="nav-item">
+                    <a class="nav-link" href="../lists/files.html">Source Files</a>
+                  </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="../lists/modules.html">Modules</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="../lists/procedures.html">Procedures</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="../lists/types.html">Derived Types</a>
+                </li>
+            </ul>
+              <div class="d-flex align-items-end flex-grow-1">
+                <form action="../search.html" role="search" class="ms-auto">
+                  <input type="text" class="form-control" aria-label="Search" placeholder="Search" name="q" id="tipue_search_input" autocomplete="off" required>
+                </form>
+              </div>
+          </div><!--/.nav-collapse -->
+        </div>
+      </nav>
+    </div>
+
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-12" id='text'>
+			 <h1>Procedures</h1>
+			 <table class="table table-striped">
+			 <thead><tr><th>Procedure</th><th>Location</th><th>Procedure Type</th><th>Description</th></tr></thead>
+			 <tbody>
+			   <tr>
+                 <td><a href='../proc/getpid.html'>getpid</a></td>
+                 <td><a href='../module/s3_http.html'>s3_http</a></td>
+                 <td>Function</td>
+                 <td></td>
+               </tr>
+			   <tr>
+                 <td><a href='../proc/parse_s3_uri.html'>parse_s3_uri</a></td>
+                 <td><a href='../module/s3_http.html'>s3_http</a></td>
+                 <td>Subroutine</td>
+                 <td><p>Parse an s3:// URI into bucket name and object key components.</p><a href="../proc/parse_s3_uri.html" class="pull-right"><emph>Read more&hellip;</emph></a></td>
+               </tr>
+			   <tr>
+                 <td><a href='../proc/s3_close.html'>s3_close</a></td>
+                 <td><a href='../module/s3_io.html'>s3_io</a></td>
+                 <td>Subroutine</td>
+                 <td><p>Close an S3 file handle.</p><a href="../proc/s3_close.html" class="pull-right"><emph>Read more&hellip;</emph></a></td>
+               </tr>
+			   <tr>
+                 <td><a href='../proc/s3_delete_object.html'>s3_delete_object</a></td>
+                 <td><a href='../module/s3_http.html'>s3_http</a></td>
+                 <td>Function</td>
+                 <td><p>Delete an object from S3.</p><a href="../proc/s3_delete_object.html" class="pull-right"><emph>Read more&hellip;</emph></a></td>
+               </tr>
+			   <tr>
+                 <td><a href='../proc/s3_delete_uri.html'>s3_delete_uri</a></td>
+                 <td><a href='../module/s3_http.html'>s3_http</a></td>
+                 <td>Function</td>
+                 <td></td>
+               </tr>
+			   <tr>
+                 <td><a href='../proc/s3_exists_uri.html'>s3_exists_uri</a></td>
+                 <td><a href='../module/s3_http.html'>s3_http</a></td>
+                 <td>Function</td>
+                 <td></td>
+               </tr>
+			   <tr>
+                 <td><a href='../proc/s3_get_object.html'>s3_get_object</a></td>
+                 <td><a href='../module/s3_http.html'>s3_http</a></td>
+                 <td>Function</td>
+                 <td><p>Download an object from S3 and return its content.</p><a href="../proc/s3_get_object.html" class="pull-right"><emph>Read more&hellip;</emph></a></td>
+               </tr>
+			   <tr>
+                 <td><a href='../proc/s3_get_uri.html'>s3_get_uri</a></td>
+                 <td><a href='../module/s3_http.html'>s3_http</a></td>
+                 <td>Function</td>
+                 <td><p>Download an object using an s3:// URI.</p><a href="../proc/s3_get_uri.html" class="pull-right"><emph>Read more&hellip;</emph></a></td>
+               </tr>
+			   <tr>
+                 <td><a href='../proc/s3_init.html'>s3_init</a></td>
+                 <td><a href='../module/s3_http.html'>s3_http</a></td>
+                 <td>Subroutine</td>
+                 <td><p>Initialize the S3 HTTP module with configuration.</p><a href="../proc/s3_init.html" class="pull-right"><emph>Read more&hellip;</emph></a></td>
+               </tr>
+			   <tr>
+                 <td><a href='../proc/s3_object_exists.html'>s3_object_exists</a></td>
+                 <td><a href='../module/s3_http.html'>s3_http</a></td>
+                 <td>Function</td>
+                 <td><p>Check if an object exists in S3.</p><a href="../proc/s3_object_exists.html" class="pull-right"><emph>Read more&hellip;</emph></a></td>
+               </tr>
+			   <tr>
+                 <td><a href='../proc/s3_open.html'>s3_open</a></td>
+                 <td><a href='../module/s3_io.html'>s3_io</a></td>
+                 <td>Subroutine</td>
+                 <td><p>Open an S3 object for reading or writing.</p><a href="../proc/s3_open.html" class="pull-right"><emph>Read more&hellip;</emph></a></td>
+               </tr>
+			   <tr>
+                 <td><a href='../proc/s3_put_object.html'>s3_put_object</a></td>
+                 <td><a href='../module/s3_http.html'>s3_http</a></td>
+                 <td>Function</td>
+                 <td><p>Upload an object to S3.</p><a href="../proc/s3_put_object.html" class="pull-right"><emph>Read more&hellip;</emph></a></td>
+               </tr>
+			   <tr>
+                 <td><a href='../proc/s3_put_uri.html'>s3_put_uri</a></td>
+                 <td><a href='../module/s3_http.html'>s3_http</a></td>
+                 <td>Function</td>
+                 <td></td>
+               </tr>
+			   <tr>
+                 <td><a href='../proc/s3_read_line.html'>s3_read_line</a></td>
+                 <td><a href='../module/s3_io.html'>s3_io</a></td>
+                 <td>Subroutine</td>
+                 <td><p>Read a line from an open S3 file.</p><a href="../proc/s3_read_line.html" class="pull-right"><emph>Read more&hellip;</emph></a></td>
+               </tr>
+			   <tr>
+                 <td><a href='../proc/s3_rewind.html'>s3_rewind</a></td>
+                 <td><a href='../module/s3_io.html'>s3_io</a></td>
+                 <td>Subroutine</td>
+                 <td><p>Rewind an S3 file to the beginning.</p><a href="../proc/s3_rewind.html" class="pull-right"><emph>Read more&hellip;</emph></a></td>
+               </tr>
+			   <tr>
+                 <td><a href='../proc/s3_write_line.html'>s3_write_line</a></td>
+                 <td><a href='../module/s3_io.html'>s3_io</a></td>
+                 <td>Subroutine</td>
+                 <td><p>Write a line to an open S3 file.</p><a href="../proc/s3_write_line.html" class="pull-right"><emph>Read more&hellip;</emph></a></td>
+               </tr>
+			 </tbody></table>
+             <div class="depgraph"><?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+ "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Generated by graphviz version 13.1.2 (20250808.2320)
+ -->
+<!-- Title: call~~graph~~CallGraph Pages: 1 -->
+<svg id="callgraphCallGraph" width="213pt" height="400pt"
+ viewBox="0.00 0.00 213.00 400.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="call~~graph~~CallGraph" class="graph" transform="scale(1 1) rotate(0) translate(4 395.77)">
+<title>call~~graph~~CallGraph</title>
+<polygon fill="white" stroke="none" points="-4,4 -4,-395.77 208.54,-395.77 208.54,4 -4,4"/>
+<!-- proc~getpid -->
+<g id="call~~graph~~CallGraph_node1" class="node">
+<title>proc~getpid</title>
+<g id="a_call~~graph~~CallGraph_node1"><a xlink:href="../proc/getpid.html" xlink:title="getpid">
+<polygon fill="#d94e8f" stroke="#d94e8f" points="65.01,-22.77 11.01,-22.77 11.01,0 65.01,0 65.01,-22.77"/>
+<text xml:space="preserve" text-anchor="middle" x="38.01" y="-7.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">getpid</text>
+</a>
+</g>
+</g>
+<!-- proc~parse_s3_uri -->
+<g id="call~~graph~~CallGraph_node2" class="node">
+<title>proc~parse_s3_uri</title>
+<g id="a_call~~graph~~CallGraph_node2"><a xlink:href="../proc/parse_s3_uri.html" xlink:title="parse_s3_uri">
+<polygon fill="#d9534f" stroke="#d9534f" points="195.16,-221.77 121.39,-221.77 121.39,-199 195.16,-199 195.16,-221.77"/>
+<text xml:space="preserve" text-anchor="middle" x="158.28" y="-206.03" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">parse_s3_uri</text>
+</a>
+</g>
+</g>
+<!-- proc~s3_close -->
+<g id="call~~graph~~CallGraph_node3" class="node">
+<title>proc~s3_close</title>
+<g id="a_call~~graph~~CallGraph_node3"><a xlink:href="../proc/s3_close.html" xlink:title="s3_close">
+<polygon fill="#d9534f" stroke="#d9534f" points="65.01,-63.77 11.01,-63.77 11.01,-41 65.01,-41 65.01,-63.77"/>
+<text xml:space="preserve" text-anchor="middle" x="38.01" y="-48.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">s3_close</text>
+</a>
+</g>
+</g>
+<!-- proc~s3_put_object -->
+<g id="call~~graph~~CallGraph_node12" class="node">
+<title>proc~s3_put_object</title>
+<g id="a_call~~graph~~CallGraph_node12"><a xlink:href="../proc/s3_put_object.html" xlink:title="s3_put_object">
+<polygon fill="#d94e8f" stroke="#d94e8f" points="197.41,-83.77 119.14,-83.77 119.14,-61 197.41,-61 197.41,-83.77"/>
+<text xml:space="preserve" text-anchor="middle" x="158.28" y="-68.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">s3_put_object</text>
+</a>
+</g>
+</g>
+<!-- proc~s3_close&#45;&gt;proc~s3_put_object -->
+<g id="call~~graph~~CallGraph_edge1" class="edge">
+<title>proc~s3_close&#45;&gt;proc~s3_put_object</title>
+<path fill="none" stroke="#000000" d="M65.26,-56.82C77.84,-58.95 93.33,-61.57 107.99,-64.05"/>
+<polygon fill="#000000" stroke="#000000" points="107.05,-67.44 117.49,-65.66 108.21,-60.54 107.05,-67.44"/>
+</g>
+<!-- proc~s3_delete_object -->
+<g id="call~~graph~~CallGraph_node4" class="node">
+<title>proc~s3_delete_object</title>
+<g id="a_call~~graph~~CallGraph_node4"><a xlink:href="../proc/s3_delete_object.html" xlink:title="s3_delete_object">
+<polygon fill="#d94e8f" stroke="#d94e8f" points="204.54,-303.77 112.02,-303.77 112.02,-281 204.54,-281 204.54,-303.77"/>
+<text xml:space="preserve" text-anchor="middle" x="158.28" y="-288.03" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">s3_delete_object</text>
+</a>
+</g>
+</g>
+<!-- proc~s3_delete_uri -->
+<g id="call~~graph~~CallGraph_node5" class="node">
+<title>proc~s3_delete_uri</title>
+<g id="a_call~~graph~~CallGraph_node5"><a xlink:href="../proc/s3_delete_uri.html" xlink:title="s3_delete_uri">
+<polygon fill="#d94e8f" stroke="#d94e8f" points="76.02,-268.77 0,-268.77 0,-246 76.02,-246 76.02,-268.77"/>
+<text xml:space="preserve" text-anchor="middle" x="38.01" y="-253.03" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">s3_delete_uri</text>
+</a>
+</g>
+</g>
+<!-- proc~s3_delete_uri&#45;&gt;proc~parse_s3_uri -->
+<g id="call~~graph~~CallGraph_edge2" class="edge">
+<title>proc~s3_delete_uri&#45;&gt;proc~parse_s3_uri</title>
+<path fill="none" stroke="#000000" d="M68.85,-245.52C83.42,-239.74 101.16,-232.69 116.92,-226.42"/>
+<polygon fill="#000000" stroke="#000000" points="118.04,-229.75 126.04,-222.8 115.45,-223.24 118.04,-229.75"/>
+</g>
+<!-- proc~s3_delete_uri&#45;&gt;proc~s3_delete_object -->
+<g id="call~~graph~~CallGraph_edge3" class="edge">
+<title>proc~s3_delete_uri&#45;&gt;proc~s3_delete_object</title>
+<path fill="none" stroke="#000000" d="M76.43,-268.46C85.97,-271.28 96.39,-274.37 106.48,-277.35"/>
+<polygon fill="#000000" stroke="#000000" points="105.21,-280.62 115.79,-280.11 107.19,-273.91 105.21,-280.62"/>
+</g>
+<!-- proc~s3_init -->
+<g id="call~~graph~~CallGraph_node9" class="node">
+<title>proc~s3_init</title>
+<g id="a_call~~graph~~CallGraph_node9"><a xlink:href="../proc/s3_init.html" xlink:title="s3_init">
+<polygon fill="#d9534f" stroke="#d9534f" points="185.28,-180.77 131.28,-180.77 131.28,-158 185.28,-158 185.28,-180.77"/>
+<text xml:space="preserve" text-anchor="middle" x="158.28" y="-165.03" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">s3_init</text>
+</a>
+</g>
+</g>
+<!-- proc~s3_delete_uri&#45;&gt;proc~s3_init -->
+<g id="call~~graph~~CallGraph_edge4" class="edge">
+<title>proc~s3_delete_uri&#45;&gt;proc~s3_init</title>
+<path fill="none" stroke="#000000" d="M63.03,-245.58C67.56,-242.86 72.1,-239.76 76.02,-236.38 95.68,-219.43 91.68,-206.52 112.02,-190.38 114.87,-188.12 118,-186.04 121.25,-184.14"/>
+<polygon fill="#000000" stroke="#000000" points="122.57,-187.39 129.82,-179.66 119.33,-181.19 122.57,-187.39"/>
+</g>
+<!-- proc~s3_exists_uri -->
+<g id="call~~graph~~CallGraph_node6" class="node">
+<title>proc~s3_exists_uri</title>
+<g id="a_call~~graph~~CallGraph_node6"><a xlink:href="../proc/s3_exists_uri.html" xlink:title="s3_exists_uri">
+<polygon fill="#d94e8f" stroke="#d94e8f" points="74.89,-227.77 1.12,-227.77 1.12,-205 74.89,-205 74.89,-227.77"/>
+<text xml:space="preserve" text-anchor="middle" x="38.01" y="-212.03" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">s3_exists_uri</text>
+</a>
+</g>
+</g>
+<!-- proc~s3_exists_uri&#45;&gt;proc~parse_s3_uri -->
+<g id="call~~graph~~CallGraph_edge5" class="edge">
+<title>proc~s3_exists_uri&#45;&gt;proc~parse_s3_uri</title>
+<path fill="none" stroke="#000000" d="M75.14,-214.55C86.04,-214 98.18,-213.38 109.71,-212.8"/>
+<polygon fill="#000000" stroke="#000000" points="109.64,-216.31 119.45,-212.3 109.29,-209.32 109.64,-216.31"/>
+</g>
+<!-- proc~s3_exists_uri&#45;&gt;proc~s3_init -->
+<g id="call~~graph~~CallGraph_edge6" class="edge">
+<title>proc~s3_exists_uri&#45;&gt;proc~s3_init</title>
+<path fill="none" stroke="#000000" d="M68.85,-204.52C84.57,-198.28 103.98,-190.56 120.61,-183.96"/>
+<polygon fill="#000000" stroke="#000000" points="121.66,-187.31 129.66,-180.36 119.08,-180.8 121.66,-187.31"/>
+</g>
+<!-- proc~s3_object_exists -->
+<g id="call~~graph~~CallGraph_node10" class="node">
+<title>proc~s3_object_exists</title>
+<g id="a_call~~graph~~CallGraph_node10"><a xlink:href="../proc/s3_object_exists.html" xlink:title="s3_object_exists">
+<polygon fill="#d94e8f" stroke="#d94e8f" points="203.41,-262.77 113.14,-262.77 113.14,-240 203.41,-240 203.41,-262.77"/>
+<text xml:space="preserve" text-anchor="middle" x="158.28" y="-247.03" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">s3_object_exists</text>
+</a>
+</g>
+</g>
+<!-- proc~s3_exists_uri&#45;&gt;proc~s3_object_exists -->
+<g id="call~~graph~~CallGraph_edge7" class="edge">
+<title>proc~s3_exists_uri&#45;&gt;proc~s3_object_exists</title>
+<path fill="none" stroke="#000000" d="M75.14,-227.08C85.02,-230 95.92,-233.23 106.46,-236.34"/>
+<polygon fill="#000000" stroke="#000000" points="105.22,-239.63 115.8,-239.11 107.2,-232.92 105.22,-239.63"/>
+</g>
+<!-- proc~s3_get_object -->
+<g id="call~~graph~~CallGraph_node7" class="node">
+<title>proc~s3_get_object</title>
+<g id="a_call~~graph~~CallGraph_node7"><a xlink:href="../proc/s3_get_object.html" xlink:title="s3_get_object">
+<polygon fill="#d94e8f" stroke="#d94e8f" points="197.41,-134.77 119.14,-134.77 119.14,-112 197.41,-112 197.41,-134.77"/>
+<text xml:space="preserve" text-anchor="middle" x="158.28" y="-119.03" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">s3_get_object</text>
+</a>
+</g>
+</g>
+<!-- proc~s3_get_uri -->
+<g id="call~~graph~~CallGraph_node8" class="node">
+<title>proc~s3_get_uri</title>
+<g id="a_call~~graph~~CallGraph_node8"><a xlink:href="../proc/s3_get_uri.html" xlink:title="s3_get_uri">
+<polygon fill="#d94e8f" stroke="#d94e8f" points="68.89,-186.77 7.12,-186.77 7.12,-164 68.89,-164 68.89,-186.77"/>
+<text xml:space="preserve" text-anchor="middle" x="38.01" y="-171.03" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">s3_get_uri</text>
+</a>
+</g>
+</g>
+<!-- proc~s3_get_uri&#45;&gt;proc~parse_s3_uri -->
+<g id="call~~graph~~CallGraph_edge8" class="edge">
+<title>proc~s3_get_uri&#45;&gt;proc~parse_s3_uri</title>
+<path fill="none" stroke="#000000" d="M69.16,-184.31C81.69,-188.02 96.52,-192.41 110.41,-196.52"/>
+<polygon fill="#000000" stroke="#000000" points="109.25,-199.82 119.84,-199.3 111.24,-193.11 109.25,-199.82"/>
+</g>
+<!-- proc~s3_get_uri&#45;&gt;proc~s3_get_object -->
+<g id="call~~graph~~CallGraph_edge9" class="edge">
+<title>proc~s3_get_uri&#45;&gt;proc~s3_get_object</title>
+<path fill="none" stroke="#000000" d="M65.85,-163.59C81.88,-156.54 102.47,-147.48 120.06,-139.75"/>
+<polygon fill="#000000" stroke="#000000" points="121.42,-142.98 129.16,-135.75 118.6,-136.57 121.42,-142.98"/>
+</g>
+<!-- proc~s3_get_uri&#45;&gt;proc~s3_init -->
+<g id="call~~graph~~CallGraph_edge10" class="edge">
+<title>proc~s3_get_uri&#45;&gt;proc~s3_init</title>
+<path fill="none" stroke="#000000" d="M69.16,-173.86C84.47,-173.08 103.22,-172.13 119.49,-171.3"/>
+<polygon fill="#000000" stroke="#000000" points="119.49,-174.81 129.3,-170.8 119.13,-167.82 119.49,-174.81"/>
+</g>
+<!-- proc~s3_open -->
+<g id="call~~graph~~CallGraph_node11" class="node">
+<title>proc~s3_open</title>
+<g id="a_call~~graph~~CallGraph_node11"><a xlink:href="../proc/s3_open.html" xlink:title="s3_open">
+<polygon fill="#d9534f" stroke="#d9534f" points="65.01,-104.77 11.01,-104.77 11.01,-82 65.01,-82 65.01,-104.77"/>
+<text xml:space="preserve" text-anchor="middle" x="38.01" y="-89.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">s3_open</text>
+</a>
+</g>
+</g>
+<!-- proc~s3_open&#45;&gt;proc~s3_get_object -->
+<g id="call~~graph~~CallGraph_edge11" class="edge">
+<title>proc~s3_open&#45;&gt;proc~s3_get_object</title>
+<path fill="none" stroke="#000000" d="M65.26,-100.04C77.84,-103.23 93.33,-107.16 107.99,-110.88"/>
+<polygon fill="#000000" stroke="#000000" points="106.96,-114.23 117.52,-113.3 108.68,-107.45 106.96,-114.23"/>
+</g>
+<!-- proc~s3_put_uri -->
+<g id="call~~graph~~CallGraph_node13" class="node">
+<title>proc~s3_put_uri</title>
+<g id="a_call~~graph~~CallGraph_node13"><a xlink:href="../proc/s3_put_uri.html" xlink:title="s3_put_uri">
+<polygon fill="#d94e8f" stroke="#d94e8f" points="68.89,-145.77 7.12,-145.77 7.12,-123 68.89,-123 68.89,-145.77"/>
+<text xml:space="preserve" text-anchor="middle" x="38.01" y="-130.03" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">s3_put_uri</text>
+</a>
+</g>
+</g>
+<!-- proc~s3_put_uri&#45;&gt;proc~parse_s3_uri -->
+<g id="call~~graph~~CallGraph_edge12" class="edge">
+<title>proc~s3_put_uri&#45;&gt;proc~parse_s3_uri</title>
+<path fill="none" stroke="#000000" d="M61.86,-146.21C66.68,-149.01 71.62,-152.14 76.02,-155.38 93.72,-168.47 93.8,-177.04 112.02,-189.38 113.98,-190.71 116.04,-192 118.15,-193.23"/>
+<polygon fill="#000000" stroke="#000000" points="116.46,-196.3 126.93,-197.91 119.75,-190.12 116.46,-196.3"/>
+</g>
+<!-- proc~s3_put_uri&#45;&gt;proc~s3_init -->
+<g id="call~~graph~~CallGraph_edge13" class="edge">
+<title>proc~s3_put_uri&#45;&gt;proc~s3_init</title>
+<path fill="none" stroke="#000000" d="M69.16,-143.31C84.62,-147.88 103.59,-153.5 119.96,-158.34"/>
+<polygon fill="#000000" stroke="#000000" points="118.77,-161.64 129.36,-161.12 120.76,-154.93 118.77,-161.64"/>
+</g>
+<!-- proc~s3_put_uri&#45;&gt;proc~s3_put_object -->
+<g id="call~~graph~~CallGraph_edge14" class="edge">
+<title>proc~s3_put_uri&#45;&gt;proc~s3_put_object</title>
+<path fill="none" stroke="#000000" d="M61.53,-122.58C79.45,-113.18 104.77,-99.91 124.87,-89.37"/>
+<polygon fill="#000000" stroke="#000000" points="126.27,-92.59 133.5,-84.85 123.02,-86.39 126.27,-92.59"/>
+</g>
+<!-- proc~s3_read_line -->
+<g id="call~~graph~~CallGraph_node14" class="node">
+<title>proc~s3_read_line</title>
+<g id="a_call~~graph~~CallGraph_node14"><a xlink:href="../proc/s3_read_line.html" xlink:title="s3_read_line">
+<polygon fill="#d9534f" stroke="#d9534f" points="74.52,-309.77 1.5,-309.77 1.5,-287 74.52,-287 74.52,-309.77"/>
+<text xml:space="preserve" text-anchor="middle" x="38.01" y="-294.03" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">s3_read_line</text>
+</a>
+</g>
+</g>
+<!-- proc~s3_rewind -->
+<g id="call~~graph~~CallGraph_node15" class="node">
+<title>proc~s3_rewind</title>
+<g id="a_call~~graph~~CallGraph_node15"><a xlink:href="../proc/s3_rewind.html" xlink:title="s3_rewind">
+<polygon fill="#d9534f" stroke="#d9534f" points="68.14,-350.77 7.87,-350.77 7.87,-328 68.14,-328 68.14,-350.77"/>
+<text xml:space="preserve" text-anchor="middle" x="38.01" y="-335.03" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">s3_rewind</text>
+</a>
+</g>
+</g>
+<!-- proc~s3_write_line -->
+<g id="call~~graph~~CallGraph_node16" class="node">
+<title>proc~s3_write_line</title>
+<g id="a_call~~graph~~CallGraph_node16"><a xlink:href="../proc/s3_write_line.html" xlink:title="s3_write_line">
+<polygon fill="#d9534f" stroke="#d9534f" points="74.89,-391.77 1.12,-391.77 1.12,-369 74.89,-369 74.89,-391.77"/>
+<text xml:space="preserve" text-anchor="middle" x="38.01" y="-376.03" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">s3_write_line</text>
+</a>
+</g>
+</g>
+</g>
+</svg>
+</div>          <div>
+            <a type="button" class="graph-help" data-bs-toggle="modal" href="#CallGraph-help-text">Help</a>
+          </div>
+          <div class="modal fade" id="CallGraph-help-text" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-lg" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h4 class="modal-title" id="-graph-help-label">Graph Key</h4>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+<p>Nodes of different colours represent the following: </p>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+ "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Generated by graphviz version 13.1.2 (20250808.2320)
+ -->
+<!-- Title: Graph Key Pages: 1 -->
+<svg width="641pt" height="28pt"
+ viewBox="0.00 0.00 641.00 28.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(0.923937 0.923937) rotate(0) translate(4 26.77)">
+<title>Graph Key</title>
+<polygon fill="white" stroke="none" points="-4,4 -4,-26.77 689.77,-26.77 689.77,4 -4,4"/>
+<!-- Subroutine -->
+<g id="node1" class="node">
+<title>Subroutine</title>
+<polygon fill="#d9534f" stroke="#d9534f" points="63.27,-22.77 0,-22.77 0,0 63.27,0 63.27,-22.77"/>
+<text xml:space="preserve" text-anchor="middle" x="31.64" y="-7.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">Subroutine</text>
+</g>
+<!-- Function -->
+<g id="node2" class="node">
+<title>Function</title>
+<polygon fill="#d94e8f" stroke="#d94e8f" points="135.63,-22.77 81.64,-22.77 81.64,0 135.63,0 135.63,-22.77"/>
+<text xml:space="preserve" text-anchor="middle" x="108.64" y="-7.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">Function</text>
+</g>
+<!-- Interface -->
+<g id="node3" class="node">
+<title>Interface</title>
+<polygon fill="#a7506f" stroke="#a7506f" points="207.63,-22.77 153.63,-22.77 153.63,0 207.63,0 207.63,-22.77"/>
+<text xml:space="preserve" text-anchor="middle" x="180.63" y="-7.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">Interface</text>
+</g>
+<!-- Type Bound Procedure -->
+<g id="node4" class="node">
+<title>Type Bound Procedure</title>
+<polygon fill="#a7506f" stroke="#a7506f" points="347.14,-22.77 226.12,-22.77 226.12,0 347.14,0 347.14,-22.77"/>
+<text xml:space="preserve" text-anchor="middle" x="286.63" y="-7.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">Type Bound Procedure</text>
+</g>
+<!-- Unknown Procedure Type -->
+<g id="node5" class="node">
+<title>Unknown Procedure Type</title>
+<polygon fill="#777777" stroke="#777777" points="499.89,-22.77 365.38,-22.77 365.38,0 499.89,0 499.89,-22.77"/>
+<text xml:space="preserve" text-anchor="middle" x="432.63" y="-7.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">Unknown Procedure Type</text>
+</g>
+<!-- Program -->
+<g id="node6" class="node">
+<title>Program</title>
+<polygon fill="#f0ad4e" stroke="#f0ad4e" points="571.63,-22.77 517.63,-22.77 517.63,0 571.63,0 571.63,-22.77"/>
+<text xml:space="preserve" text-anchor="middle" x="544.63" y="-7.04" font-family="Helvetica,sans-Serif" font-size="10.50" fill="white">Program</text>
+</g>
+<!-- This Page&#39;s Entity -->
+<g id="node7" class="node">
+<title>This Page&#39;s Entity</title>
+<polygon fill="none" stroke="black" points="685.77,-22.77 589.5,-22.77 589.5,0 685.77,0 685.77,-22.77"/>
+<text xml:space="preserve" text-anchor="middle" x="637.63" y="-7.04" font-family="Helvetica,sans-Serif" font-size="10.50">This Page&#39;s Entity</text>
+</g>
+</g>
+</svg>
+
+<p>Solid arrows point from a procedure to one which it calls. Dashed 
+arrows point from an interface to procedures which implement that interface.
+This could include the module procedures in a generic interface or the
+implementation in a submodule of an interface in a parent module.
+</p>
+ </div>
+            </div>
+          </div>
+        </div>
+        </div>
+      </div>
+      <hr>
+    </div> <!-- /container -->
+    <footer>
+      <div class="container">
+        <div class="row justify-content-between">
+          <div class="col">
+            <p>
+              fortran-s3-accessor
+ was developed by Paul Gierz<br>              &copy; 2025 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/80x15.png" /></a>
+</p>
+          </div>
+          <div class="col">
+            <p class="text-end">
+              Documentation generated by
+              <a href="https://github.com/Fortran-FOSS-Programmers/ford">FORD</a>
+            </p>
+          </div>
+        </div>
+        <br>
+      </div> <!-- /container -->
+    </footer>
+  </body>
+</html>

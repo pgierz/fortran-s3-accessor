@@ -64,7 +64,7 @@ module s3_multipart
 
     ! S3 limits
     integer, parameter :: MIN_PART_SIZE = 5242880        ! 5 MB (5 * 1024 * 1024)
-    integer, parameter :: MAX_PART_SIZE = 5368709120     ! 5 GB (5 * 1024 * 1024 * 1024)
+    integer(kind=8), parameter :: MAX_PART_SIZE = 5368709120_8     ! 5 GB (5 * 1024 * 1024 * 1024)
     integer, parameter :: MAX_PARTS_ALLOWED = 10000      ! S3 limit
     integer(kind=8), parameter :: MAX_OBJECT_SIZE = 5497558138880_8  ! 5 TB
 

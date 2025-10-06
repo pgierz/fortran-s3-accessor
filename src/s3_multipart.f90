@@ -209,8 +209,11 @@ contains
         success = .false.
         call s3_clear_error()
 
+        ! Silence unused argument warnings for stub implementation
+        if (part_number < 0 .or. len(file_path) < 0 .or. offset < 0 .or. length < 0) return
+
         call s3_log_debug("s3_multipart_upload_part_from_file: Part " // &
-            trim(adjustl(int_to_str(part_number))) // " from file")
+            trim(adjustl(int_to_str(upload%num_parts + 1))) // " from file")
 
         ! TODO: Open file, seek to offset, read length bytes, upload
         call s3_set_error(S3_ERROR_CLIENT, 0, &
@@ -243,8 +246,6 @@ contains
     function s3_multipart_complete(upload) result(success)
         type(multipart_upload_t), intent(inout) :: upload
         logical :: success
-
-        character(len=:), allocatable :: xml_body
 
         success = .false.
         call s3_clear_error()
@@ -335,14 +336,15 @@ contains
         integer, intent(in), optional :: chunk_size_mb
         logical :: success
 
-        integer :: chunk_size, actual_chunk_size
-        integer(kind=8) :: file_size, offset, bytes_remaining
-        integer :: part_number, max_parts
-        type(multipart_upload_t) :: upload
-        integer :: unit, ios
+        integer :: chunk_size
+        integer(kind=8) :: file_size
+        integer :: max_parts, ios
 
         success = .false.
         call s3_clear_error()
+
+        ! Silence unused argument warning for stub
+        if (len(key) < 0) return
 
         ! Set chunk size (default 100MB)
         if (present(chunk_size_mb)) then

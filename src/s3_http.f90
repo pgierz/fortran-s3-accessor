@@ -35,9 +35,10 @@
 module s3_http
     use curl_stream, only: stream_command_output, is_streaming_available
     use s3_logger
+    use s3_errors
     use libcurl_bindings, only: is_libcurl_available, curl_get_to_buffer, &
                                 curl_get_to_buffer_with_progress, curl_get_to_buffer_with_headers, &
-                                curl_buffer_t, curl_progress_callback
+                                curl_buffer_t, curl_progress_callback, curl_get_http_status
     use aws_auth, only: aws_sign_request, aws_credential_t
     use openssl_bindings, only: sha256_hash, hex_encode, is_openssl_available
     implicit none
@@ -192,17 +193,17 @@ contains
         has_secret_key = len_trim(config%secret_key) > 0
 
         if (has_access_key .and. .not. has_secret_key) then
-            call s3_log_warning("Access key provided but secret key is missing - authentication disabled")
+            call s3_log_warn("Access key provided but secret key is missing - authentication disabled")
         else if (has_secret_key .and. .not. has_access_key) then
-            call s3_log_warning("Secret key provided but access key is missing - authentication disabled")
+            call s3_log_warn("Secret key provided but access key is missing - authentication disabled")
         else if (has_access_key .and. has_secret_key) then
             if (is_openssl_available()) then
                 call s3_log_info("AWS Signature v4 authentication enabled")
                 if (len_trim(config%access_key) < 16) then
-                    call s3_log_warning("Access key seems too short - AWS keys are typically 20 characters")
+                    call s3_log_warn("Access key seems too short - AWS keys are typically 20 characters")
                 end if
             else
-                call s3_log_warning("Credentials provided but OpenSSL not available - authentication disabled")
+                call s3_log_warn("Credentials provided but OpenSSL not available - authentication disabled")
             end if
         else
             call s3_log_debug("No credentials provided - using unauthenticated requests")
@@ -382,8 +383,8 @@ contains
         if (len_trim(current_config%access_key) > 0 .and. &
             len_trim(current_config%secret_key) > 0 .and. &
             .not. is_openssl_available()) then
-            call s3_log_warning("AWS credentials provided but OpenSSL not available - " // &
-                               "continuing with unauthenticated request")
+            call s3_log_warn("AWS credentials provided but OpenSSL not available - " // &
+                            "continuing with unauthenticated request")
         end if
 
         if (use_auth) then

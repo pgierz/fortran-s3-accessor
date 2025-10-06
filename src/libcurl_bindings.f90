@@ -21,6 +21,7 @@ module libcurl_bindings
     public :: curl_get_to_buffer_with_progress
     public :: curl_get_to_buffer_with_headers
     public :: curl_get_to_file
+    public :: curl_get_http_status
     public :: is_libcurl_available
     public :: get_curl_error_string
     ! Generic interface and specific setopt functions
@@ -31,6 +32,7 @@ module libcurl_bindings
     public :: curl_setopt_int
     ! Constants
     public :: CURLOPT_URL
+    public :: CURLINFO_RESPONSE_CODE
     public :: CURLE_OK
 
     !> Maximum size for error message buffer
@@ -47,6 +49,9 @@ module libcurl_bindings
     integer(c_int), parameter :: CURLOPT_XFERINFOFUNCTION = 20219
     integer(c_int), parameter :: CURLOPT_XFERINFODATA = 10057
     integer(c_int), parameter :: CURLOPT_HTTPHEADER = 10023
+
+    !> libcurl info codes (for curl_easy_getinfo)
+    integer(c_int), parameter :: CURLINFO_RESPONSE_CODE = 2097154
 
     !> libcurl result codes
     integer(c_int), parameter :: CURLE_OK = 0
@@ -108,6 +113,15 @@ module libcurl_bindings
             integer(c_int), value :: code
             type(c_ptr) :: curl_easy_strerror
         end function curl_easy_strerror
+
+        !> Get information from curl handle (for HTTP status, etc.)
+        function curl_easy_getinfo_long(handle, info, data) bind(C, name="curl_easy_getinfo")
+            import :: c_ptr, c_int, c_long
+            type(c_ptr), value :: handle
+            integer(c_int), value :: info
+            type(c_ptr), value :: data
+            integer(c_int) :: curl_easy_getinfo_long
+        end function curl_easy_getinfo_long
 
         !> Append a string to a curl slist (linked list of strings for headers)
         function curl_slist_append(list, string) bind(C, name="curl_slist_append")
@@ -898,6 +912,41 @@ contains
         end if
 
     end function get_curl_error_string
+
+    !> Get HTTP status code from curl handle.
+    !>
+    !> Extracts the HTTP response code after curl_easy_perform.
+    !>
+    !> @param handle Curl handle (must have performed a request)
+    !> @param http_status Output HTTP status code (0 if error)
+    !> @return .true. if successful, .false. on error
+    function curl_get_http_status(handle, http_status) result(success)
+        type(c_ptr), intent(in) :: handle
+        integer, intent(out) :: http_status
+        logical :: success
+
+        integer(c_long), target :: response_code
+        integer(c_int) :: res
+
+        success = .false.
+        http_status = 0
+
+        if (.not. c_associated(handle)) then
+            call s3_log_error('curl_get_http_status: invalid handle')
+            return
+        end if
+
+        ! Get response code
+        res = curl_easy_getinfo_long(handle, CURLINFO_RESPONSE_CODE, c_loc(response_code))
+
+        if (res == CURLE_OK) then
+            http_status = int(response_code)
+            success = .true.
+        else
+            call s3_log_error('curl_get_http_status: curl_easy_getinfo failed')
+        end if
+
+    end function curl_get_http_status
 
     !> Convert C string to Fortran string.
     !>

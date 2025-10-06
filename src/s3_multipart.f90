@@ -814,17 +814,77 @@ contains
         call s3_log_info("s3_put_large_file: Uploading " // trim(file_path) // &
             " as " // trim(adjustl(int_to_str(max_parts))) // " parts")
 
-        ! TODO: Implement full upload logic
-        ! 1. Initiate upload
-        ! 2. Loop through file in chunks
-        ! 3. Upload each chunk as a part
-        ! 4. Complete or abort
+        ! Implementation: Full multipart upload workflow
+        block
+            type(multipart_upload_t) :: upload
+            integer :: part_num
+            integer(kind=8) :: offset, bytes_remaining, bytes_to_upload
+            logical :: part_success
 
-        call s3_set_error(S3_ERROR_CLIENT, 0, &
-            "Multipart upload not yet fully implemented", &
-            "This is a work-in-progress feature for v1.2.0")
+            ! Step 1: Initiate multipart upload
+            call s3_log_debug("Initiating multipart upload for: " // trim(key))
+            if (.not. s3_multipart_init(key, upload)) then
+                call s3_log_error("Failed to initiate multipart upload")
+                success = .false.
+                return
+            end if
 
-        success = .false.
+            call s3_log_info("Multipart upload initiated, UploadId: " // trim(upload%upload_id))
+
+            ! Step 2: Upload each part
+            offset = 0_8
+            bytes_remaining = file_size
+
+            do part_num = 1, max_parts
+                ! Calculate bytes for this part
+                bytes_to_upload = min(int(chunk_size, kind=8), bytes_remaining)
+
+                call s3_log_debug("Uploading part " // trim(adjustl(int_to_str(part_num))) // &
+                    " (" // trim(adjustl(int_to_str(int(bytes_to_upload)))) // " bytes)")
+
+                ! Upload this part from file
+                part_success = s3_multipart_upload_part_from_file(upload, part_num, &
+                    file_path, offset, int(bytes_to_upload))
+
+                if (.not. part_success) then
+                    call s3_log_error("Failed to upload part " // trim(adjustl(int_to_str(part_num))))
+
+                    ! Abort the multipart upload on failure
+                    call s3_log_info("Aborting multipart upload due to part failure")
+                    if (.not. s3_multipart_abort(upload)) then
+                        call s3_log_warn("Failed to abort multipart upload - may need manual cleanup")
+                    end if
+
+                    success = .false.
+                    return
+                end if
+
+                ! Update offset and remaining bytes
+                offset = offset + bytes_to_upload
+                bytes_remaining = bytes_remaining - bytes_to_upload
+
+                call s3_log_info("Part " // trim(adjustl(int_to_str(part_num))) // &
+                    "/" // trim(adjustl(int_to_str(max_parts))) // " uploaded successfully")
+            end do
+
+            ! Step 3: Complete the multipart upload
+            call s3_log_debug("All parts uploaded, completing multipart upload")
+            if (.not. s3_multipart_complete(upload)) then
+                call s3_log_error("Failed to complete multipart upload")
+
+                ! Try to abort on completion failure
+                call s3_log_info("Attempting to abort failed upload")
+                if (.not. s3_multipart_abort(upload)) then
+                    call s3_log_warn("Failed to abort multipart upload - may need manual cleanup")
+                end if
+
+                success = .false.
+                return
+            end if
+
+            call s3_log_info("Multipart upload completed successfully: " // trim(key))
+            success = .true.
+        end block
     end function s3_put_large_file
 
     !> Helper function to convert integer to string

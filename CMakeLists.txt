@@ -85,6 +85,12 @@ endif()
 add_executable(s3_test app/test_simple.f90)
 target_link_libraries(s3_test s3_accessor)
 
+# Auth demo (requires OpenSSL)
+if(HAVE_OPENSSL)
+  add_executable(auth_demo app/auth_demo.f90)
+  target_link_libraries(auth_demo s3_accessor)
+endif()
+
 # Installation rules
 install(TARGETS s3_accessor
   EXPORT s3_accessor_targets

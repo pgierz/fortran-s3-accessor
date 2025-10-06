@@ -134,3 +134,19 @@ The GitHub Actions CI tests on Linux (ubuntu-latest) with gcc 11, 12, 13
 - No external dependencies beyond standard Fortran and system curl
 - **URL encoding in S3 keys is currently untested and unsupported** - use simple alphanumeric keys and underscores only
 - **Progress callbacks require Linux** - uses libcurl direct binding which has ABI issues on macOS
+
+## Local Testing on macOS
+
+**IMPORTANT**: Local testing with `fpm build` or `fpm test` on macOS is problematic due to libcurl direct binding compatibility issues. The library uses C interoperability with libcurl which has ABI differences on macOS.
+
+**Recommended workflow**:
+1. **Do NOT test builds locally on macOS** - compilation may fail with linking errors or missing symbols
+2. **Always rely on CI for validation** - push commits and let GitHub Actions (Linux) validate the build
+3. **Focus on code correctness** - ensure syntax is correct, then validate via CI
+4. **CI is the source of truth** - all tests run on Linux where libcurl bindings work correctly
+
+**Why this happens**:
+- macOS libcurl has different ABI/symbols than Linux
+- Direct C bindings (`iso_c_binding`) are platform-specific
+- The library is designed primarily for Linux HPC environments
+- macOS local builds may show errors that don't occur in production (Linux)

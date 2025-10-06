@@ -625,7 +625,7 @@ contains
         character(len=*), intent(in) :: headers
         character(len=:), allocatable :: etag
 
-        integer :: start_pos, end_pos, quote1, quote2
+        integer :: start_pos, quote1, quote2
 
         ! Find ETag: header (case insensitive)
         start_pos = index(headers, 'ETag:')

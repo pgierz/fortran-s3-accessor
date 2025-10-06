@@ -152,7 +152,7 @@ contains
         end if
 
         ! Create temp file for response
-        write(tmpfile, '(A,I0,A)') '/tmp/s3_multipart_init_', getpid(), '.xml'
+        tmpfile = generate_temp_filename('s3_multipart_init_', '.xml')
 
         ! Execute curl POST request (simplified - needs AWS v4 signature in production)
         write(cmd, '(A,A,A,A,A)') 'curl -s -X POST "', trim(url), '" -o ', trim(tmpfile)
@@ -379,7 +379,7 @@ contains
         xml_body = build_complete_multipart_xml(upload)
 
         ! Write XML to temp file
-        write(tmpfile_xml, '(A,I0,A)') '/tmp/s3_complete_', getpid(), '.xml'
+        tmpfile_xml = generate_temp_filename('s3_complete_', '.xml')
         open(newunit=unit, file=tmpfile_xml, status='replace', action='write', iostat=ios)
         if (ios /= 0) then
             call s3_set_error(S3_ERROR_CLIENT, 0, &
@@ -391,7 +391,7 @@ contains
         close(unit)
 
         ! Create response temp file
-        write(tmpfile_response, '(A,I0,A)') '/tmp/s3_complete_response_', getpid(), '.xml'
+        tmpfile_response = generate_temp_filename('s3_complete_response_', '.xml')
 
         ! Execute curl POST request with XML body
         write(cmd, '(A,A,A,A,A,A,A)') 'curl -s -X POST "', trim(url), &
@@ -468,7 +468,7 @@ contains
                     trim(config%endpoint), '/', trim(upload%key), '?uploadId=', trim(upload%upload_id)
             else
                 write(url, '(A,A,A,A,A,A,A,A)') 'http://', trim(upload%bucket), '.', &
-                    trim(upload%endpoint), '/', trim(upload%key), '?uploadId=', trim(upload%upload_id)
+                    trim(config%endpoint), '/', trim(upload%key), '?uploadId=', trim(upload%upload_id)
             end if
         end if
 
@@ -692,5 +692,24 @@ contains
 
         xml = trim(temp_xml)
     end function build_complete_multipart_xml
+
+    !> Generate a unique temporary filename using random numbers (F2008 standard)
+    !>
+    !> @param prefix Filename prefix
+    !> @param suffix Filename suffix
+    !> @return Unique temporary filename
+    function generate_temp_filename(prefix, suffix) result(filename)
+        character(len=*), intent(in) :: prefix
+        character(len=*), intent(in) :: suffix
+        character(len=:), allocatable :: filename
+        real :: rand_val
+        integer :: rand_int
+        character(len=256) :: temp_str
+
+        call random_number(rand_val)
+        rand_int = int(rand_val * 1000000000.0)
+        write(temp_str, '(A,A,I9.9,A)') '/tmp/', trim(prefix), rand_int, trim(suffix)
+        filename = trim(temp_str)
+    end function generate_temp_filename
 
 end module s3_multipart

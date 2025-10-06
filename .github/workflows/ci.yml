@@ -164,6 +164,7 @@ jobs:
           gfortran -c -Wall -Wextra -Werror -std=f2008 \
                    -fcheck=all -fbacktrace \
                    src/s3_logger.f90 \
+                   src/s3_errors.f90 \
                    src/curl_stream.f90 \
                    src/openssl_bindings.f90 \
                    src/aws_auth.f90 \
@@ -207,6 +208,7 @@ jobs:
         run: |
           gfortran -o netcdf_example \
             src/s3_logger.f90 \
+            src/s3_errors.f90 \
             src/curl_stream.f90 \
             src/openssl_bindings.f90 \
             src/aws_auth.f90 \

@@ -42,10 +42,10 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install libcurl development library
+      - name: Install dependencies (libcurl, OpenSSL)
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev
 
       - name: Build with FPM
         run: fpm build --verbose
@@ -81,10 +81,10 @@ jobs:
           compiler: gcc
           version: 12
 
-      - name: Install libcurl development library
+      - name: Install dependencies (libcurl, OpenSSL)
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev
 
       - name: Configure CMake
         run: |
@@ -154,10 +154,10 @@ jobs:
           compiler: gcc
           version: 12
 
-      - name: Install libcurl development library
+      - name: Install dependencies (libcurl, OpenSSL)
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev
 
       - name: Check compilation with strict flags
         run: |
@@ -165,9 +165,12 @@ jobs:
                    -fcheck=all -fbacktrace \
                    src/s3_logger.f90 \
                    src/curl_stream.f90 \
+                   src/openssl_bindings.f90 \
+                   src/aws_auth.f90 \
                    src/libcurl_bindings.f90 \
                    src/s3_http.f90 \
-                   src/s3_io.f90
+                   src/s3_io.f90 \
+                   -lssl -lcrypto
 
       - name: Check for TODO/FIXME comments
         run: |
@@ -193,7 +196,7 @@ jobs:
       - name: Install NetCDF and libcurl
         run: |
           sudo apt-get update
-          sudo apt-get install -y libnetcdf-dev libnetcdff-dev libcurl4-openssl-dev
+          sudo apt-get install -y libnetcdf-dev libnetcdff-dev libcurl4-openssl-dev libssl-dev
 
       - name: Verify NetCDF installation
         run: |
@@ -205,13 +208,138 @@ jobs:
           gfortran -o netcdf_example \
             src/s3_logger.f90 \
             src/curl_stream.f90 \
+            src/openssl_bindings.f90 \
+            src/aws_auth.f90 \
             src/libcurl_bindings.f90 \
             src/s3_http.f90 \
             examples/netcdf_minimal.f90 \
-            $(nf-config --fflags) $(nf-config --flibs) -lcurl
+            $(nf-config --fflags) $(nf-config --flibs) -lcurl -lssl -lcrypto
 
       - name: Run NetCDF example
         env:
           S3_LOG_LEVEL: INFO
         run: |
           ./netcdf_example
+
+  integration-tests:
+    name: Integration Tests (Real S3 + MinIO)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      minio:
+        image: minio/minio:latest
+        ports:
+          - 9000:9000
+          - 9001:9001
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Fortran
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: gcc
+          version: 12
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev curl
+
+      - name: Setup FPM
+        uses: fortran-lang/setup-fpm@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build all executables
+        run: fpm build --verbose
+
+      - name: Setup MinIO test bucket and data
+        run: |
+          # Install MinIO client
+          wget -q https://dl.min.io/client/mc/release/linux-amd64/mc
+          chmod +x mc
+
+          # Configure MinIO client
+          ./mc alias set local http://localhost:9000 minioadmin minioadmin
+
+          # Create test bucket
+          ./mc mb local/test-bucket
+
+          # Upload test files with different sizes and content
+          echo "Hello from MinIO!" > test-small.txt
+          ./mc cp test-small.txt local/test-bucket/test.txt
+
+          # Create a larger test file (~1MB)
+          dd if=/dev/urandom of=test-medium.bin bs=1024 count=1024 2>/dev/null
+          ./mc cp test-medium.bin local/test-bucket/data/medium.bin
+
+          # Create a multi-line text file for s3_read_line testing
+          cat > test-multiline.txt <<EOF
+          Line 1: First line of test data
+          Line 2: Second line of test data
+          Line 3: Third line with special chars: !@#$%
+          Line 4: Fourth line
+          Line 5: Final line
+          EOF
+          ./mc cp test-multiline.txt local/test-bucket/multiline.txt
+
+          # Create some nested structure
+          echo "nested data" > test-nested.txt
+          ./mc cp test-nested.txt local/test-bucket/path/to/nested.txt
+
+          # Verify all uploads
+          echo "MinIO bucket contents:"
+          ./mc ls -r local/test-bucket/
+
+      - name: Run test_simple.f90 (ESGF public bucket)
+        env:
+          S3_LOG_LEVEL: INFO
+        run: |
+          fpm run test_simple
+        continue-on-error: true  # ESGF may be unreliable
+
+      - name: Run test_streaming.f90 (ESGF public bucket)
+        env:
+          S3_LOG_LEVEL: DEBUG
+        run: |
+          fpm run test_streaming
+        continue-on-error: true  # ESGF may be unreliable
+
+      - name: Run file_download_demo.f90 (httpbin.org)
+        run: |
+          fpm run file_download_demo
+
+      - name: Run progress_demo.f90 (httpbin.org)
+        run: |
+          fpm run progress_demo
+
+      - name: Test MinIO connectivity
+        run: |
+          # Simple test that MinIO is accessible
+          curl -f http://localhost:9000/minio/health/live
+
+      - name: Run test_minio.f90 (MinIO integration)
+        env:
+          S3_LOG_LEVEL: INFO
+        run: |
+          # Dedicated test against MinIO with all test data
+          fpm run test_minio
+
+      - name: Run auth_demo with MinIO
+        env:
+          S3_LOG_LEVEL: INFO
+        run: |
+          # The auth_demo will try MinIO as example 3
+          fpm run auth_demo || true
+        continue-on-error: true  # Expected to show connection attempts

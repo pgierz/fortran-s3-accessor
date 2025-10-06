@@ -35,7 +35,11 @@
 module s3_http
     use curl_stream, only: stream_command_output, is_streaming_available
     use s3_logger
-    use libcurl_bindings, only: is_libcurl_available, curl_get_to_buffer, curl_buffer_t
+    use libcurl_bindings, only: is_libcurl_available, curl_get_to_buffer, &
+                                curl_get_to_buffer_with_progress, curl_get_to_buffer_with_headers, &
+                                curl_buffer_t, curl_progress_callback
+    use aws_auth, only: aws_sign_request, aws_credential_t
+    use openssl_bindings, only: sha256_hash, hex_encode, is_openssl_available
     implicit none
     private
 
@@ -80,6 +84,8 @@ module s3_http
     public :: s3_put_uri
     public :: s3_exists_uri
     public :: s3_delete_uri
+    ! Progress callback interface (re-exported from libcurl_bindings)
+    public :: curl_progress_callback
 
 contains
 
@@ -161,6 +167,7 @@ contains
     subroutine s3_init(config)
         type(s3_config), intent(in) :: config
         character(len=256) :: msg
+        logical :: has_access_key, has_secret_key
 
         ! Initialize logger from environment
         call s3_init_logger()
@@ -179,6 +186,27 @@ contains
         call s3_log_debug(trim(msg))
         write(msg, '(A,L1)') 'Streaming available: ', is_streaming_available()
         call s3_log_info(trim(msg))
+
+        ! Validate authentication configuration
+        has_access_key = len_trim(config%access_key) > 0
+        has_secret_key = len_trim(config%secret_key) > 0
+
+        if (has_access_key .and. .not. has_secret_key) then
+            call s3_log_warning("Access key provided but secret key is missing - authentication disabled")
+        else if (has_secret_key .and. .not. has_access_key) then
+            call s3_log_warning("Secret key provided but access key is missing - authentication disabled")
+        else if (has_access_key .and. has_secret_key) then
+            if (is_openssl_available()) then
+                call s3_log_info("AWS Signature v4 authentication enabled")
+                if (len_trim(config%access_key) < 16) then
+                    call s3_log_warning("Access key seems too short - AWS keys are typically 20 characters")
+                end if
+            else
+                call s3_log_warning("Credentials provided but OpenSSL not available - authentication disabled")
+            end if
+        else
+            call s3_log_debug("No credentials provided - using unauthenticated requests")
+        end if
     end subroutine s3_init
 
     !> Download an object from S3 and return its content.
@@ -208,9 +236,10 @@ contains
     !>     print *, 'Download failed'
     !> end if
     !> ```
-    function s3_get_object(key, content) result(success)
+    function s3_get_object(key, content, progress_callback) result(success)
         character(len=*), intent(in) :: key
         character(len=:), allocatable, intent(out) :: content
+        procedure(curl_progress_callback), optional :: progress_callback
         logical :: success
         character(len=2048) :: url
         character(len=4096) :: cmd
@@ -266,7 +295,7 @@ contains
         ! Try libcurl first (fastest, cross-platform)
         if (is_libcurl_available()) then
             call s3_log_debug('Attempting native libcurl')
-            success = s3_get_object_libcurl(trim(url), content)
+            success = s3_get_object_libcurl(trim(url), content, progress_callback)
             if (success) then
                 write(msg, '(A,I0,A)') 'libcurl successful, received ', len(content), ' bytes'
                 call s3_log_debug(trim(msg))
@@ -330,14 +359,78 @@ contains
     !>
     !> @param[in] url The complete URL to fetch
     !> @param[out] content The downloaded content
+    !> @param[in] progress_callback Optional progress callback function
     !> @return .true. if successful, .false. otherwise
-    function s3_get_object_libcurl(url, content) result(success)
+    function s3_get_object_libcurl(url, content, progress_callback) result(success)
         character(len=*), intent(in) :: url
         character(len=:), allocatable, intent(out) :: content
+        procedure(curl_progress_callback), optional :: progress_callback
         logical :: success
         type(curl_buffer_t) :: buffer
+        logical :: use_auth
+        character(len=:), allocatable :: auth_header, timestamp, host, uri
+        character(len=3) :: headers_array(3)  ! Host, X-Amz-Date, Authorization
+        type(aws_credential_t) :: creds
+        character(len=64) :: payload_hash  ! Empty SHA256
 
-        success = curl_get_to_buffer(url, buffer)
+        ! Check if authentication is required and available
+        use_auth = len_trim(current_config%access_key) > 0 .and. &
+                   len_trim(current_config%secret_key) > 0 .and. &
+                   is_openssl_available()
+
+        ! Warn if credentials provided but OpenSSL unavailable
+        if (len_trim(current_config%access_key) > 0 .and. &
+            len_trim(current_config%secret_key) > 0 .and. &
+            .not. is_openssl_available()) then
+            call s3_log_warning("AWS credentials provided but OpenSSL not available - " // &
+                               "continuing with unauthenticated request")
+        end if
+
+        if (use_auth) then
+            call s3_log_debug("AWS Signature v4 authentication enabled")
+            ! Generate timestamp (ISO8601 format: YYYYMMDDTHHMMSSZ)
+            call get_iso8601_timestamp(timestamp)
+
+            ! Extract host and URI from URL
+            call parse_url(url, host, uri)
+
+            ! Hash of empty payload for GET request
+            payload_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+            ! Setup credentials
+            allocate(character(len=len_trim(current_config%access_key)) :: creds%access_key)
+            allocate(character(len=len_trim(current_config%secret_key)) :: creds%secret_key)
+            allocate(character(len=len_trim(current_config%region)) :: creds%region)
+            allocate(character(len=2) :: creds%service)
+            creds%access_key = trim(current_config%access_key)
+            creds%secret_key = trim(current_config%secret_key)
+            creds%region = trim(current_config%region)
+            creds%service = "s3"
+
+            ! Generate authorization header
+            if (.not. aws_sign_request(creds, "GET", host, uri, "", payload_hash, &
+                                      timestamp, auth_header)) then
+                call s3_log_error("Failed to generate AWS signature - check credentials and region")
+                success = .false.
+                return
+            end if
+
+            ! Build HTTP headers
+            headers_array(1) = "Host: " // trim(host)
+            headers_array(2) = "X-Amz-Date: " // trim(timestamp)
+            headers_array(3) = "Authorization: " // trim(auth_header)
+
+            call s3_log_debug("Signing request with access key: " // creds%access_key(1:min(12, len(creds%access_key))) // "...")
+            call s3_log_debug("Region: " // trim(creds%region))
+            success = curl_get_to_buffer_with_headers(url, buffer, headers_array)
+        else
+            ! No authentication
+            if (present(progress_callback)) then
+                success = curl_get_to_buffer_with_progress(url, buffer, progress_callback)
+            else
+                success = curl_get_to_buffer(url, buffer)
+            end if
+        end if
 
         if (success .and. allocated(buffer%data)) then
             content = buffer%data
@@ -703,9 +796,10 @@ contains
     !> ! Download from different bucket using URI
     !> success = s3_get_uri('s3://other-bucket/data/file.txt', content)
     !> ```
-    function s3_get_uri(uri, content) result(success)
+    function s3_get_uri(uri, content, progress_callback) result(success)
         character(len=*), intent(in) :: uri
         character(len=:), allocatable, intent(out) :: content
+        procedure(curl_progress_callback), optional :: progress_callback
         logical :: success
         character(len=:), allocatable :: bucket, key
         type(s3_config) :: temp_config
@@ -717,7 +811,7 @@ contains
         call parse_s3_uri(uri, bucket, key, uri_parsed)
         if (.not. uri_parsed) then
             ! Not a s3:// URI, treat as regular key with current config
-            success = s3_get_object(uri, content)
+            success = s3_get_object(uri, content, progress_callback)
             return
         end if
 
@@ -726,11 +820,11 @@ contains
             temp_config = current_config
             temp_config%bucket = bucket
             call s3_init(temp_config)
-            success = s3_get_object(key, content)
+            success = s3_get_object(key, content, progress_callback)
             ! Restore original config
             call s3_init(current_config)
         else
-            success = s3_get_object(key, content)
+            success = s3_get_object(key, content, progress_callback)
         end if
     end function s3_get_uri
 
@@ -827,5 +921,61 @@ contains
             success = s3_delete_object(key)
         end if
     end function s3_delete_uri
+
+    !> Generate ISO8601 timestamp for AWS signature.
+    !>
+    !> Generates current UTC time in format: YYYYMMDDTHHMMSSZ
+    !>
+    !> @param timestamp [out] ISO8601 timestamp string
+    subroutine get_iso8601_timestamp(timestamp)
+        character(len=:), allocatable, intent(out) :: timestamp
+        integer :: values(8)
+        character(len=16) :: ts
+
+        ! Get current date and time
+        call date_and_time(values=values)
+
+        ! Format as ISO8601: YYYYMMDDTHHMMSSZ
+        write(ts, '(I4.4,I2.2,I2.2,A,I2.2,I2.2,I2.2,A)') &
+            values(1), values(2), values(3), 'T', values(5), values(6), values(7), 'Z'
+
+        timestamp = trim(ts)
+    end subroutine get_iso8601_timestamp
+
+    !> Parse URL to extract host and URI path.
+    !>
+    !> Extracts hostname and URI path from a complete URL.
+    !> Example: "https://bucket.s3.amazonaws.com/path/to/object" ->
+    !>          host="bucket.s3.amazonaws.com", uri="/path/to/object"
+    !>
+    !> @param url [in] Complete URL
+    !> @param host [out] Hostname
+    !> @param uri [out] URI path (starts with /)
+    subroutine parse_url(url, host, uri)
+        character(len=*), intent(in) :: url
+        character(len=:), allocatable, intent(out) :: host, uri
+        integer :: proto_end, host_start, path_start
+
+        ! Find end of protocol (http:// or https://)
+        proto_end = index(url, '://')
+        if (proto_end == 0) then
+            host = ""
+            uri = "/"
+            return
+        end if
+
+        host_start = proto_end + 3
+
+        ! Find start of path (first / after protocol)
+        path_start = index(url(host_start:), '/')
+        if (path_start == 0) then
+            ! No path, just host
+            host = url(host_start:)
+            uri = "/"
+        else
+            host = url(host_start:host_start + path_start - 2)
+            uri = url(host_start + path_start - 1:)
+        end if
+    end subroutine parse_url
 
 end module s3_http

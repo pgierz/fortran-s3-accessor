@@ -1,0 +1,475 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+      <meta name="description" content="Fortran library providing S3-compatible object storage access with familiar I/O interfaces">
+    <meta name="author" content="Paul Gierz" >
+    <link rel="icon" href="./favicon.png">
+
+    <title> fortran-s3-accessor </title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <!-- Font Awesome -->
+    <link href="./css/fontawesome.min.css" rel="stylesheet">
+    <link href="./css/brands.min.css" rel="stylesheet">
+    <link href="./css/regular.min.css" rel="stylesheet">
+    <link href="./css/solid.min.css" rel="stylesheet">
+    <link href="./css/v4-font-face.min.css" rel="stylesheet">
+    <link href="./css/v4-shims.min.css" rel="stylesheet">
+    <!-- MathJax -->
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        TeX: { equationNumbers: { autoNumber: "AMS" } }
+      });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@2.7.9/MathJax.js?config=TeX-AMS-MML_HTMLorMML" async
+            integrity="sha256-DViIOMYdwlM/axqoGDPeUyf0urLoHMN4QACBKyB58Uw=" crossorigin="anonymous"></script>
+    <!-- Other scripts and stylesheets -->
+    <link href="./css/local.css" rel="stylesheet">
+    <link href="./css/pygments.css" rel="stylesheet">
+    <script src="./js/svg-pan-zoom.min.js"></script>
+  </head>
+
+  <body>
+
+    <!-- Fixed navbar -->
+    <div class="container-fluid mb-sm-4 mb-xl-2">
+      <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container">
+          <a class="navbar-brand" href="./index.html">fortran-s3-accessor </a>
+          <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar"
+                  aria-expanded="false" aria-controls="navbar" aria-label="Toggle navigation">
+                  <span class="navbar-toggler-icon">
+          </button>
+
+          <div id="navbar" class="navbar-collapse collapse">
+            <ul class="navbar-nav">
+                  <li class="nav-item">
+                    <a class="nav-link" href="./lists/files.html">Source Files</a>
+                  </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="./lists/modules.html">Modules</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="./lists/procedures.html">Procedures</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="./lists/types.html">Derived Types</a>
+                </li>
+            </ul>
+              <div class="d-flex align-items-end flex-grow-1">
+                <form action="./search.html" role="search" class="ms-auto">
+                  <input type="text" class="form-control" aria-label="Search" placeholder="Search" name="q" id="tipue_search_input" autocomplete="off" required>
+                </form>
+              </div>
+          </div><!--/.nav-collapse -->
+        </div>
+      </nav>
+    </div>
+
+    <div class="container">
+  <!-- Main component for a primary marketing message or call to action -->
+    <div class="p-5 mb-4 bg-light border rounded-3" id="jumbotron">
+      <p>Fortran library providing S3-compatible object storage access with familiar I/O interfaces</p>
+      </p>
+    </div>
+
+      <div class="row" id='text'>
+        <div class=col-md-8>
+          <h1>fortran-s3-accessor</h1>
+          <h1>Brief description</h1>
+<p><code>fortran-s3-accessor</code> provides a simple, direct interface for accessing S3-compatible object storage from Fortran programs. The library is designed for scientific computing workflows that need to read and write data to cloud object storage with minimal friction.</p>
+<h2>Key Features</h2>
+<ul>
+<li><strong>Direct HTTP-based S3 operations</strong>: GET, PUT, DELETE, and HEAD requests via curl</li>
+<li><strong>Dual interface design</strong>:</li>
+<li>Low-level <code>s3_http</code> module for direct S3 operations</li>
+<li>High-level <code>s3_io</code> module providing familiar Fortran I/O patterns (open/read/write/close)</li>
+<li><strong>URI support</strong>: Work with <code>s3://bucket/key</code> URIs for seamless cross-bucket operations</li>
+<li><strong>Public bucket access</strong>: Read from public S3 buckets without authentication</li>
+<li><strong>Comprehensive testing</strong>: Mock-based testing framework with 22+ test cases</li>
+<li><strong>Zero dependencies</strong>: Uses only standard Fortran 2008 and system curl</li>
+<li><strong>Production ready</strong>: Designed for integration with scientific computing workflows (FESOM, climate models, etc.)</li>
+</ul>
+<h1>Architecture</h1>
+<p>The library follows a layered architecture with two main modules:</p>
+<h2>Core Module: <code>s3_http</code></h2>
+<p>Provides direct curl-based HTTP access to S3 operations:</p>
+<ul>
+<li><strong><code>s3_config</code></strong>: Configuration type containing bucket name, region, endpoint, credentials, and protocol settings</li>
+<li><strong><code>s3_init(config)</code></strong>: Initialize the library with an S3 configuration</li>
+<li><strong><code>s3_get_object(key, content)</code></strong>: Download object content from S3</li>
+<li><strong><code>s3_put_object(key, content)</code></strong>: Upload object content to S3 (requires authentication)</li>
+<li><strong><code>s3_object_exists(key)</code></strong>: Check if an object exists using HTTP HEAD requests</li>
+<li><strong><code>s3_delete_object(key)</code></strong>: Delete an object from S3 (requires authentication)</li>
+</ul>
+<h3>URI-based Operations</h3>
+<p>For convenience, the library provides URI-aware versions of all operations:</p>
+<ul>
+<li><strong><code>s3_get_uri(uri, content)</code></strong>: Get object using <code>s3://bucket/key</code> format</li>
+<li><strong><code>s3_put_uri(uri, content)</code></strong>: Put object using URI</li>
+<li><strong><code>s3_exists_uri(uri)</code></strong>: Check existence using URI</li>
+<li><strong><code>s3_delete_uri(uri)</code></strong>: Delete object using URI</li>
+</ul>
+<p>These functions automatically parse the bucket name from the URI and temporarily switch contexts when accessing different buckets.</p>
+<h2>High-level Module: <code>s3_io</code></h2>
+<p>Provides Fortran-like I/O interface built on top of <code>s3_http</code>:</p>
+<ul>
+<li><strong><code>s3_open(unit, key, mode, iostat)</code></strong>: Open an S3 object for reading or writing</li>
+<li><strong><code>s3_close(unit, iostat)</code></strong>: Close the S3 object (uploads on write mode)</li>
+<li><strong><code>s3_read_line(unit, line, iostat)</code></strong>: Read a line from the object</li>
+<li><strong><code>s3_write_line(unit, line, iostat)</code></strong>: Write a line to the object buffer</li>
+<li><strong><code>s3_rewind(unit, iostat)</code></strong>: Rewind read position to beginning</li>
+</ul>
+<p>This module manages up to 100 concurrent file handles with internal buffering.</p>
+<h1>Testing</h1>
+<p>The library includes comprehensive testing infrastructure using the <a href="https://github.com/fortran-lang/test-drive">test-drive</a> framework:</p>
+<h2>Test Coverage</h2>
+<ul>
+<li><strong>Mock-based testing</strong>: PATH manipulation replaces curl with controllable mock script</li>
+<li><strong>Error condition testing</strong>: Network failures, authentication errors, HTTP error codes, malformed responses</li>
+<li><strong>Edge case testing</strong>: Empty keys, very long keys, special characters, boundary conditions</li>
+<li><strong>Uninitialized state testing</strong>: Separate executable ensures proper isolation</li>
+<li><strong>Protocol testing</strong>: Both HTTP and HTTPS, various S3-compatible endpoints</li>
+<li><strong>URI parsing tests</strong>: Complex URIs, edge cases in bucket/key extraction</li>
+</ul>
+<h2>Running Tests</h2>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Run all tests with mock curl</span>
+<span class="nv">PATH</span><span class="o">=</span><span class="s2">&quot;test/scripts:</span><span class="nv">$PATH</span><span class="s2">&quot;</span><span class="w"> </span>fpm<span class="w"> </span><span class="nb">test</span>
+
+<span class="c1"># Tests are defined in test/test_s3_http.f90</span>
+<span class="c1"># Mock responses stored in test/data/responses/</span>
+</code></pre></div>
+
+<h1>Use Cases</h1>
+<h2>Scientific Data Access</h2>
+<p>Access climate model output, observational data, and analysis results stored in S3:</p>
+<ul>
+<li>Read NetCDF files from ESGF data nodes</li>
+<li>Process CMIP6 climate model output</li>
+<li>Access NOAA, NASA, and other public scientific datasets</li>
+<li>Integrate with existing Fortran scientific workflows</li>
+</ul>
+<h2>Public Bucket Integration</h2>
+<p>The library excels at reading from public S3 buckets commonly used in scientific computing:</p>
+<ul>
+<li>NOAA Global Forecast System (GFS) data</li>
+<li>NASA Earth observation data</li>
+<li>CMIP6 climate model archives</li>
+<li>Genomics datasets (1000 Genomes, NIH)</li>
+</ul>
+<h1>Limitations</h1>
+<ul>
+<li><strong>URL encoding</strong>: Special characters in S3 keys are currently untested; use alphanumeric keys with underscores for safety</li>
+<li><strong>Authentication</strong>: Uses simplified credential checking; production write operations require AWS Signature v4 (planned)</li>
+<li><strong>Binary data</strong>: Current implementation optimized for text; binary support exists but is less tested</li>
+<li><strong>Dependencies</strong>: Requires system <code>curl</code> command to be available in PATH</li>
+<li><strong>Parallel I/O</strong>: No built-in support for concurrent multi-threaded access</li>
+</ul>
+<h1>Examples</h1>
+<h2>Example 1: Basic Object Download</h2>
+<p>Download a text file from a public S3 bucket:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">program </span><span class="n">basic_download</span>
+<span class="w">    </span><span class="k">use </span><span class="n">s3_http</span>
+<span class="w">    </span><span class="k">implicit none</span>
+
+<span class="k">    type</span><span class="p">(</span><span class="n">s3_config</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">config</span>
+<span class="w">    </span><span class="kt">character</span><span class="p">(</span><span class="nb">len</span><span class="o">=</span><span class="p">:),</span><span class="w"> </span><span class="k">allocatable</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">content</span>
+<span class="w">    </span><span class="kt">logical</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">success</span>
+
+<span class="w">    </span><span class="c">! Configure for public NOAA bucket</span>
+<span class="w">    </span><span class="n">config</span><span class="p">%</span><span class="n">bucket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;noaa-gfs-bdp-pds&#39;</span>
+<span class="w">    </span><span class="n">config</span><span class="p">%</span><span class="n">region</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;us-east-1&#39;</span>
+<span class="w">    </span><span class="n">config</span><span class="p">%</span><span class="n">endpoint</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;s3.amazonaws.com&#39;</span>
+<span class="w">    </span><span class="n">config</span><span class="p">%</span><span class="n">use_https</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">.</span><span class="n">true</span><span class="p">.</span>
+<span class="w">    </span><span class="k">call </span><span class="n">s3_init</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+<span class="w">    </span><span class="c">! Download README</span>
+<span class="w">    </span><span class="n">success</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s3_get_object</span><span class="p">(</span><span class="s1">&#39;README.md&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">content</span><span class="p">)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">success</span><span class="p">)</span><span class="w"> </span><span class="k">then</span>
+<span class="k">        print</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;Downloaded &#39;</span><span class="p">,</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">content</span><span class="p">),</span><span class="w"> </span><span class="s1">&#39; bytes&#39;</span>
+<span class="w">        </span><span class="k">print</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="n">content</span>
+<span class="w">    </span><span class="k">else</span>
+<span class="k">        print</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;Download failed&#39;</span>
+<span class="w">    </span><span class="k">end if</span>
+<span class="k">end program </span><span class="n">basic_download</span>
+</code></pre></div>
+
+<h2>Example 2: Check Object Existence</h2>
+<p>Verify an object exists before attempting to download:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">program </span><span class="n">check_exists</span>
+<span class="w">    </span><span class="k">use </span><span class="n">s3_http</span>
+<span class="w">    </span><span class="k">implicit none</span>
+
+<span class="k">    type</span><span class="p">(</span><span class="n">s3_config</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">config</span>
+<span class="w">    </span><span class="kt">logical</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">exists</span>
+
+<span class="w">    </span><span class="n">config</span><span class="p">%</span><span class="n">bucket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;my-bucket&#39;</span>
+<span class="w">    </span><span class="n">config</span><span class="p">%</span><span class="n">use_https</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">.</span><span class="n">true</span><span class="p">.</span>
+<span class="w">    </span><span class="k">call </span><span class="n">s3_init</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+<span class="w">    </span><span class="n">exists</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s3_object_exists</span><span class="p">(</span><span class="s1">&#39;data/input.nc&#39;</span><span class="p">)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">exists</span><span class="p">)</span><span class="w"> </span><span class="k">then</span>
+<span class="k">        print</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;File exists, proceeding with download...&#39;</span>
+<span class="w">    </span><span class="k">else</span>
+<span class="k">        print</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;File not found, using default data&#39;</span>
+<span class="w">    </span><span class="k">end if</span>
+<span class="k">end program </span><span class="n">check_exists</span>
+</code></pre></div>
+
+<h2>Example 3: Using Fortran I/O Interface</h2>
+<p>Read an S3 object line by line like a regular file:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">program </span><span class="n">read_lines</span>
+<span class="w">    </span><span class="k">use </span><span class="n">s3_http</span>
+<span class="w">    </span><span class="k">use </span><span class="n">s3_io</span>
+<span class="w">    </span><span class="k">implicit none</span>
+
+<span class="k">    type</span><span class="p">(</span><span class="n">s3_config</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">config</span>
+<span class="w">    </span><span class="kt">integer</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">unit</span><span class="p">,</span><span class="w"> </span><span class="n">iostat</span><span class="p">,</span><span class="w"> </span><span class="n">line_count</span>
+<span class="w">    </span><span class="kt">character</span><span class="p">(</span><span class="nb">len</span><span class="o">=</span><span class="mi">1024</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">line</span>
+
+<span class="w">    </span><span class="c">! Initialize</span>
+<span class="w">    </span><span class="n">config</span><span class="p">%</span><span class="n">bucket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;my-data-bucket&#39;</span>
+<span class="w">    </span><span class="k">call </span><span class="n">s3_init</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+<span class="w">    </span><span class="c">! Open S3 object</span>
+<span class="w">    </span><span class="k">call </span><span class="n">s3_open</span><span class="p">(</span><span class="n">unit</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;data/measurements.csv&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;read&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">iostat</span><span class="p">)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">iostat</span><span class="w"> </span><span class="o">/=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">stop</span><span class="w"> </span><span class="s1">&#39;Failed to open file&#39;</span>
+
+<span class="w">    </span><span class="c">! Read all lines</span>
+<span class="w">    </span><span class="n">line_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
+<span class="w">    </span><span class="k">do</span>
+<span class="k">        call </span><span class="n">s3_read_line</span><span class="p">(</span><span class="n">unit</span><span class="p">,</span><span class="w"> </span><span class="n">line</span><span class="p">,</span><span class="w"> </span><span class="n">iostat</span><span class="p">)</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">iostat</span><span class="w"> </span><span class="o">/=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">exit</span>
+<span class="k">        </span><span class="n">line_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line_count</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">        </span><span class="k">print</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;Line &#39;</span><span class="p">,</span><span class="w"> </span><span class="n">line_count</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;: &#39;</span><span class="p">,</span><span class="w"> </span><span class="nb">trim</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+<span class="w">    </span><span class="k">end do</span>
+
+<span class="k">    call </span><span class="n">s3_close</span><span class="p">(</span><span class="n">unit</span><span class="p">,</span><span class="w"> </span><span class="n">iostat</span><span class="p">)</span>
+<span class="w">    </span><span class="k">print</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;Read &#39;</span><span class="p">,</span><span class="w"> </span><span class="n">line_count</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39; lines&#39;</span>
+<span class="k">end program </span><span class="n">read_lines</span>
+</code></pre></div>
+
+<h2>Example 4: URI-based Access Across Buckets</h2>
+<p>Use <code>s3://</code> URIs to seamlessly access multiple buckets:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">program </span><span class="n">uri_access</span>
+<span class="w">    </span><span class="k">use </span><span class="n">s3_http</span>
+<span class="w">    </span><span class="k">implicit none</span>
+
+<span class="k">    type</span><span class="p">(</span><span class="n">s3_config</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">config</span>
+<span class="w">    </span><span class="kt">character</span><span class="p">(</span><span class="nb">len</span><span class="o">=</span><span class="p">:),</span><span class="w"> </span><span class="k">allocatable</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">content</span>
+<span class="w">    </span><span class="kt">logical</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">success</span>
+
+<span class="w">    </span><span class="c">! Initialize with default bucket</span>
+<span class="w">    </span><span class="n">config</span><span class="p">%</span><span class="n">bucket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;default-bucket&#39;</span>
+<span class="w">    </span><span class="n">config</span><span class="p">%</span><span class="n">use_https</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">.</span><span class="n">true</span><span class="p">.</span>
+<span class="w">    </span><span class="k">call </span><span class="n">s3_init</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+<span class="w">    </span><span class="c">! Access different bucket via URI</span>
+<span class="w">    </span><span class="n">success</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s3_get_uri</span><span class="p">(</span><span class="s1">&#39;s3://other-bucket/path/to/data.txt&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">content</span><span class="p">)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">success</span><span class="p">)</span><span class="w"> </span><span class="k">then</span>
+<span class="k">        print</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;Content from other-bucket: &#39;</span><span class="p">,</span><span class="w"> </span><span class="n">content</span>
+<span class="w">    </span><span class="k">end if</span>
+
+<span class="w">    </span><span class="c">! Original bucket still accessible</span>
+<span class="w">    </span><span class="n">success</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s3_get_object</span><span class="p">(</span><span class="s1">&#39;local-data.txt&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">content</span><span class="p">)</span>
+<span class="k">end program </span><span class="n">uri_access</span>
+</code></pre></div>
+
+<h2>Example 5: NetCDF Climate Data</h2>
+<p>Download and process NetCDF files from ESGF climate data archives:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">program </span><span class="n">climate_data</span>
+<span class="w">    </span><span class="k">use </span><span class="n">s3_http</span>
+<span class="w">    </span><span class="k">use </span><span class="n">netcdf</span>
+<span class="w">    </span><span class="k">implicit none</span>
+
+<span class="k">    type</span><span class="p">(</span><span class="n">s3_config</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">config</span>
+<span class="w">    </span><span class="kt">character</span><span class="p">(</span><span class="nb">len</span><span class="o">=</span><span class="p">:),</span><span class="w"> </span><span class="k">allocatable</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">nc_data</span>
+<span class="w">    </span><span class="kt">character</span><span class="p">(</span><span class="nb">len</span><span class="o">=*</span><span class="p">),</span><span class="w"> </span><span class="k">parameter</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">climate_uri</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">&amp;</span>
+<span class="w">        </span><span class="s1">&#39;s3://esgf-world/CMIP6/CMIP/AWI/AWI-ESM-1-1-LR/piControl/r1i1p1f1/fx/areacella/gn/v20200212/&#39;</span><span class="w"> </span><span class="o">//</span><span class="w"> </span><span class="p">&amp;</span>
+<span class="w">        </span><span class="s1">&#39;areacella_fx_AWI-ESM-1-1-LR_piControl_r1i1p1f1_gn.nc&#39;</span>
+<span class="w">    </span><span class="kt">logical</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">success</span>
+
+<span class="w">    </span><span class="c">! Configure for public ESGF bucket</span>
+<span class="w">    </span><span class="n">config</span><span class="p">%</span><span class="n">use_https</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">.</span><span class="n">true</span><span class="p">.</span>
+<span class="w">    </span><span class="k">call </span><span class="n">s3_init</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+<span class="w">    </span><span class="c">! Download NetCDF file</span>
+<span class="w">    </span><span class="n">success</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s3_get_uri</span><span class="p">(</span><span class="n">climate_uri</span><span class="p">,</span><span class="w"> </span><span class="n">nc_data</span><span class="p">)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">success</span><span class="p">)</span><span class="w"> </span><span class="k">then</span>
+<span class="w">        </span><span class="c">! Write to temp file and process with NetCDF library</span>
+<span class="w">        </span><span class="k">open</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="k">file</span><span class="o">=</span><span class="s1">&#39;/tmp/climate.nc&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">form</span><span class="o">=</span><span class="s1">&#39;unformatted&#39;</span><span class="p">,</span><span class="w"> </span><span class="nb">access</span><span class="o">=</span><span class="s1">&#39;stream&#39;</span><span class="p">)</span>
+<span class="w">        </span><span class="k">write</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="w"> </span><span class="n">nc_data</span>
+<span class="w">        </span><span class="k">close</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+
+<span class="w">        </span><span class="c">! Now use NetCDF library to read the file</span>
+<span class="w">        </span><span class="k">print</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;Climate data downloaded, ready for processing&#39;</span>
+<span class="w">    </span><span class="k">end if</span>
+<span class="k">end program </span><span class="n">climate_data</span>
+</code></pre></div>
+
+<h2>Example 6: Writing Data (with Authentication)</h2>
+<p>Upload data to S3 (requires AWS credentials):</p>
+<div class="codehilite"><pre><span></span><code><span class="k">program </span><span class="n">write_data</span>
+<span class="w">    </span><span class="k">use </span><span class="n">s3_http</span>
+<span class="w">    </span><span class="k">implicit none</span>
+
+<span class="k">    type</span><span class="p">(</span><span class="n">s3_config</span><span class="p">)</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">config</span>
+<span class="w">    </span><span class="kt">character</span><span class="p">(</span><span class="nb">len</span><span class="o">=</span><span class="p">:),</span><span class="w"> </span><span class="k">allocatable</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="k">data</span>
+<span class="k">    </span><span class="kt">logical</span><span class="w"> </span><span class="kd">::</span><span class="w"> </span><span class="n">success</span>
+
+<span class="w">    </span><span class="c">! Configure with credentials</span>
+<span class="w">    </span><span class="n">config</span><span class="p">%</span><span class="n">bucket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;my-output-bucket&#39;</span>
+<span class="w">    </span><span class="n">config</span><span class="p">%</span><span class="n">access_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;AKIAIOSFODNN7EXAMPLE&#39;</span>
+<span class="w">    </span><span class="n">config</span><span class="p">%</span><span class="n">secret_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY&#39;</span>
+<span class="w">    </span><span class="n">config</span><span class="p">%</span><span class="n">use_https</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">.</span><span class="n">true</span><span class="p">.</span>
+<span class="w">    </span><span class="k">call </span><span class="n">s3_init</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+<span class="w">    </span><span class="c">! Create data</span>
+<span class="w">    </span><span class="k">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;simulation results: temp=25.3, pressure=1013.2&#39;</span>
+
+<span class="w">    </span><span class="c">! Upload to S3</span>
+<span class="w">    </span><span class="n">success</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s3_put_object</span><span class="p">(</span><span class="s1">&#39;results/output.txt&#39;</span><span class="p">,</span><span class="w"> </span><span class="k">data</span><span class="p">)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">success</span><span class="p">)</span><span class="w"> </span><span class="k">then</span>
+<span class="k">        print</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;Data uploaded successfully&#39;</span>
+<span class="w">    </span><span class="k">else</span>
+<span class="k">        print</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;Upload failed&#39;</span>
+<span class="w">    </span><span class="k">end if</span>
+<span class="k">end program </span><span class="n">write_data</span>
+</code></pre></div>
+
+<h1>Getting Started</h1>
+<ol>
+<li>
+<p><strong>Clone the repository</strong>:
+   <code>bash
+   git clone https://github.com/pgierz/fortran-s3-accessor.git</code></p>
+</li>
+<li>
+<p><strong>Build with FPM</strong>:
+   <code>bash
+   fpm build
+   fpm test  # Run tests</code></p>
+</li>
+<li>
+<p><strong>Or build with CMake</strong>:
+   <code>bash
+   mkdir build &amp;&amp; cd build
+   cmake .. -DCMAKE_BUILD_TYPE=Release
+   make -j</code></p>
+</li>
+<li>
+<p><strong>Run examples</strong>:
+   <code>bash
+   fpm run test_simple              # Basic operations
+   fpm run --example s3_netcdf_example  # NetCDF example</code></p>
+</li>
+</ol>
+<h1>Integration</h1>
+<p>To use in your project with FPM, add to <code>fpm.toml</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">[dependencies]</span>
+<span class="n">fortran-s3-accessor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;https://github.com/pgierz/fortran-s3-accessor.git&quot;</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+
+<p>Then in your code:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">use </span><span class="n">s3_http</span><span class="w">        </span><span class="c">! For direct S3 operations</span>
+<span class="k">use </span><span class="n">s3_io</span><span class="w">          </span><span class="c">! For Fortran I/O interface</span>
+</code></pre></div>
+        </div>
+          <div class="col-md-4">
+            <div class="card card-body bg-light">
+              <h2 class="card-title">Developer Info</h2>
+              <h4 class="card-text">Paul Gierz</h4>
+              <p class="card-text"></p>
+                <div class="text-center"><div class="btn-group" role="group">
+                      <a class="btn btn-lg btn-primary" href="mailto:pgierz@awi.de"><i class="fa fa-envelope fa-lg"></i></a>
+                    
+                    <a class="btn btn-lg btn-primary" href="https://github.com/pgierz/fortran-s3-accessor"><i class="fa fa-github fa-lg"></i></a>
+                    
+                    
+                    
+                    
+                    
+                    
+                </div></div>
+            </div>
+          </div>
+      </div>
+        <div class="row">
+          <hr>
+          <div class="col-xs-6 col-sm-3">
+            <div>
+              <h3>Source Files</h3>
+              <ul><li><a href='sourcefile/s3_http.f90.html'>s3_http.f90</a></li><li><a href='sourcefile/s3_io.f90.html'>s3_io.f90</a></li></ul>
+            </div>
+            <div>
+              <ul>
+                <li><a href="./lists/files.html"><em>All source files&hellip;</em></a></li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-xs-6 col-sm-3">
+            <div>
+              <h3>Modules</h3>
+              <ul><li><a href='module/s3_http.html'>s3_http</a></li><li><a href='module/s3_io.html'>s3_io</a></li></ul>
+            </div>
+            <div>
+              <ul>
+                <li><a href="./lists/modules.html"><em>All modules&hellip;</em></a></li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-xs-6 col-sm-3">
+            <div>
+              <h3>Procedures</h3>
+              <ul><li><a href='proc/getpid.html'>getpid</a></li><li><a href='proc/parse_s3_uri.html'>parse_s3_uri</a></li><li><a href='proc/s3_close.html'>s3_close</a></li><li><a href='proc/s3_delete_object.html'>s3_delete_object</a></li><li><a href='proc/s3_delete_uri.html'>s3_delete_uri</a></li><li><a href='proc/s3_exists_uri.html'>s3_exists_uri</a></li><li><a href='proc/s3_get_object.html'>s3_get_object</a></li><li><a href='proc/s3_get_uri.html'>s3_get_uri</a></li><li><a href='proc/s3_init.html'>s3_init</a></li><li><a href='proc/s3_object_exists.html'>s3_object_exists</a></li></ul>
+            </div>
+            <div>
+              <ul>
+                <li><a href="./lists/procedures.html"><em>All procedures&hellip;</em></a></li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-xs-6 col-sm-3">
+            <div>
+              <h3>Derived Types</h3>
+              <ul><li><a href='type/s3_config.html'>s3_config</a></li><li><a href='type/s3_file.html'>s3_file</a></li></ul>
+            </div>
+            <div>
+              <ul>
+                <li><a href="./lists/types.html"><em>All derived types&hellip;</em></a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      <hr>
+    </div> <!-- /container -->
+    <footer>
+      <div class="container">
+        <div class="row justify-content-between">
+          <div class="col">
+            <p>
+              fortran-s3-accessor
+ was developed by Paul Gierz<br>              &copy; 2025 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/80x15.png" /></a>
+</p>
+          </div>
+          <div class="col">
+            <p class="text-end">
+              Documentation generated by
+              <a href="https://github.com/Fortran-FOSS-Programmers/ford">FORD</a>
+            </p>
+          </div>
+        </div>
+        <br>
+      </div> <!-- /container -->
+    </footer>
+  </body>
+</html>

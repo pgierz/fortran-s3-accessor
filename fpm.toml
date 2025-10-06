@@ -13,7 +13,7 @@ auto-executables = true
 auto-tests = true
 auto-examples = true
 module-naming = false
-link = ["curl"]
+link = ["curl", "ssl", "crypto"]
 [install]
 library = false
 [fortran]

@@ -98,8 +98,6 @@ contains
         type(multipart_upload_t), intent(out) :: upload
         logical :: success
 
-        character(len=:), allocatable :: response
-
         success = .false.
         call s3_clear_error()
 
@@ -155,6 +153,9 @@ contains
 
         success = .false.
         call s3_clear_error()
+
+        ! Silence unused argument warning for stub
+        if (.not. allocated(upload%key)) return
 
         ! Validate part number
         if (part_number < 1 .or. part_number > MAX_PARTS_ALLOWED) then

@@ -85,6 +85,9 @@ module s3_http
     public :: s3_put_uri
     public :: s3_exists_uri
     public :: s3_delete_uri
+    ! Configuration access
+    public :: s3_get_config
+    public :: s3_is_initialized
     ! Progress callback interface (re-exported from libcurl_bindings)
     public :: curl_progress_callback
     ! Error handling (re-exported from s3_errors)
@@ -1064,5 +1067,26 @@ contains
             uri = url(host_start + path_start - 1:)
         end if
     end subroutine parse_url
+
+    !> Get the current S3 configuration.
+    !>
+    !> Returns the configuration set by s3_init(). This allows other modules
+    !> (like s3_multipart) to access the S3 connection parameters.
+    !>
+    !> @return The current s3_config
+    !>
+    !> @note Returns an uninitialized config if s3_init() hasn't been called yet.
+    function s3_get_config() result(config)
+        type(s3_config) :: config
+        config = current_config
+    end function s3_get_config
+
+    !> Check if S3 has been initialized.
+    !>
+    !> @return .true. if s3_init() has been called, .false. otherwise
+    function s3_is_initialized() result(is_init)
+        logical :: is_init
+        is_init = initialized
+    end function s3_is_initialized
 
 end module s3_http

@@ -31,12 +31,15 @@
 !> @note Requires AWS credentials configured in s3_config for authentication.
 !> @warning Each part must be at least 5MB (except the last part).
 module s3_multipart
-    use s3_http, only: s3_config
+    use iso_fortran_env, only: int64
+    use s3_http, only: s3_config, s3_get_config, s3_is_initialized
     use s3_logger
     use s3_errors
-    use libcurl_bindings, only: is_libcurl_available
+    use libcurl_bindings, only: is_libcurl_available, curl_buffer_t, &
+                                 curl_get_to_buffer_with_headers
     use aws_auth, only: aws_sign_request, aws_credential_t
     use openssl_bindings, only: sha256_hash, hex_encode, is_openssl_available
+    use curl_stream, only: is_streaming_available
     implicit none
     private
 
@@ -402,5 +405,115 @@ contains
         character(len=20) :: str
         write(str, '(I0)') i
     end function int_to_str
+
+    !> Extract UploadId from InitiateMultipartUpload XML response
+    !>
+    !> Example response:
+    !> <?xml version="1.0"?>
+    !> <InitiateMultipartUploadResult>
+    !>   <Bucket>bucket</Bucket>
+    !>   <Key>key</Key>
+    !>   <UploadId>VXBsb2FkIElE...</UploadId>
+    !> </InitiateMultipartUploadResult>
+    function extract_upload_id(xml_response) result(upload_id)
+        character(len=*), intent(in) :: xml_response
+        character(len=:), allocatable :: upload_id
+
+        integer :: start_pos, end_pos
+
+        ! Find <UploadId> tag
+        start_pos = index(xml_response, '<UploadId>')
+        if (start_pos == 0) then
+            upload_id = ''
+            return
+        end if
+        start_pos = start_pos + len('<UploadId>')
+
+        ! Find </UploadId> tag
+        end_pos = index(xml_response(start_pos:), '</UploadId>')
+        if (end_pos == 0) then
+            upload_id = ''
+            return
+        end if
+        end_pos = start_pos + end_pos - 2
+
+        ! Extract UploadId
+        upload_id = xml_response(start_pos:end_pos)
+    end function extract_upload_id
+
+    !> Extract ETag from HTTP response headers
+    !>
+    !> ETag header format: ETag: "686897696a7c876b7e"
+    function extract_etag(headers) result(etag)
+        character(len=*), intent(in) :: headers
+        character(len=:), allocatable :: etag
+
+        integer :: start_pos, end_pos, quote1, quote2
+
+        ! Find ETag: header (case insensitive)
+        start_pos = index(headers, 'ETag:')
+        if (start_pos == 0) then
+            start_pos = index(headers, 'etag:')
+        end if
+        if (start_pos == 0) then
+            etag = ''
+            return
+        end if
+        start_pos = start_pos + len('ETag:')
+
+        ! Find first quote
+        quote1 = index(headers(start_pos:), '"')
+        if (quote1 == 0) then
+            etag = ''
+            return
+        end if
+        quote1 = start_pos + quote1
+
+        ! Find second quote
+        quote2 = index(headers(quote1:), '"')
+        if (quote2 <= 1) then
+            etag = ''
+            return
+        end if
+        quote2 = quote1 + quote2 - 2
+
+        ! Extract ETag (without quotes)
+        etag = headers(quote1:quote2)
+    end function extract_etag
+
+    !> Build XML body for CompleteMultipartUpload request
+    !>
+    !> Example:
+    !> <CompleteMultipartUpload>
+    !>   <Part>
+    !>     <PartNumber>1</PartNumber>
+    !>     <ETag>"etag1"</ETag>
+    !>   </Part>
+    !>   <Part>
+    !>     <PartNumber>2</PartNumber>
+    !>     <ETag>"etag2"</ETag>
+    !>   </Part>
+    !> </CompleteMultipartUpload>
+    function build_complete_multipart_xml(upload) result(xml)
+        type(multipart_upload_t), intent(in) :: upload
+        character(len=:), allocatable :: xml
+
+        character(len=10000) :: temp_xml
+        integer :: i, pos
+
+        temp_xml = '<CompleteMultipartUpload>'
+        pos = len_trim(temp_xml) + 1
+
+        do i = 1, upload%num_parts
+            write(temp_xml(pos:), '(A,I0,A,A,A,A)') &
+                '<Part><PartNumber>', i, '</PartNumber><ETag>"', &
+                trim(upload%etags(i)), '"</ETag></Part>'
+            pos = len_trim(temp_xml) + 1
+        end do
+
+        temp_xml(pos:) = '</CompleteMultipartUpload>'
+
+        xml = trim(temp_xml)
+    end function build_complete_multipart_xml
 
 end module s3_multipart

@@ -42,6 +42,7 @@ endif()
 # Source files - direct implementation (order matters for module dependencies)
 set(LIB_SOURCES
   src/s3_logger.f90
+  src/s3_errors.f90
   src/curl_stream.f90
 )
 
@@ -99,6 +100,7 @@ install(TARGETS s3_accessor
 )
 
 set(MOD_FILES
+  ${CMAKE_CURRENT_BINARY_DIR}/s3_errors.mod
   ${CMAKE_CURRENT_BINARY_DIR}/curl_stream.mod
   ${CMAKE_CURRENT_BINARY_DIR}/s3_http.mod
   ${CMAKE_CURRENT_BINARY_DIR}/s3_io.mod

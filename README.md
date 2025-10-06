@@ -19,11 +19,69 @@ The library uses an intelligent fallback strategy:
 
 ## Features
 
+- **AWS Signature v4 Authentication**: Full production-grade authentication for private buckets
 - **Simple HTTP-based S3 operations**: GET, PUT, DELETE, and HEAD requests
 - **Progress callbacks** (Linux only): Real-time download monitoring for large files
 - **Automatic platform fallbacks**: Core operations work on all platforms
 - **Comprehensive testing**: 22+ test cases with mock-based testing framework
+- **S3-compatible services**: Works with AWS S3, MinIO, LocalStack, and other S3-compatible storage
 - **Production ready**: Designed for scientific computing workflows like FESOM
+
+## Authentication
+
+The library supports both **public** (unauthenticated) and **private** (authenticated) S3 buckets.
+
+### Public Buckets (No Authentication)
+
+For public buckets, simply leave `access_key` and `secret_key` empty:
+
+```fortran
+config%bucket = 'esgf-world'
+config%endpoint = 's3.amazonaws.com'
+config%region = 'us-east-1'
+config%access_key = ''  ! Empty = unauthenticated
+config%secret_key = ''
+call s3_init(config)
+```
+
+### Private Buckets (AWS Signature v4)
+
+For private buckets, provide your AWS credentials. The library automatically uses **AWS Signature v4** authentication:
+
+```fortran
+config%bucket = 'my-private-bucket'
+config%endpoint = 's3.amazonaws.com'
+config%region = 'us-west-2'
+config%access_key = 'AKIAIOSFODNN7EXAMPLE'
+config%secret_key = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+call s3_init(config)
+! All requests now automatically signed with AWS Signature v4
+```
+
+**Requirements:** Authentication requires OpenSSL to be available at runtime (libssl, libcrypto).
+
+**Security Note:** In production, load credentials from:
+- Environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`)
+- AWS credentials file (`~/.aws/credentials`)
+- EC2 instance metadata service
+- Never hardcode credentials in source code!
+
+### S3-Compatible Services (MinIO, LocalStack)
+
+The library works with any S3-compatible service:
+
+```fortran
+config%bucket = 'test-bucket'
+config%endpoint = 'localhost:9000'
+config%region = 'us-east-1'
+config%use_https = .false.
+config%use_path_style = .true.  ! Required for localhost
+config%access_key = 'minioadmin'
+config%secret_key = 'minioadmin'
+call s3_init(config)
+```
+
+**See:** `app/auth_demo.f90` for complete authentication examples.
 
 ## Quick Start
 
@@ -153,25 +211,24 @@ The library automatically detects platform capabilities and uses the fastest met
 
 **Target: December 25, 2025** | [Milestone](https://github.com/pgierz/fortran-s3-accessor/milestone/1) | [All Issues](https://github.com/pgierz/fortran-s3-accessor/issues?q=is%3Aissue+milestone%3A%22v1.2.0+-+Christmas+Release+%F0%9F%8E%84%22)
 
-Major enhancements planned:
+**Recently Completed:**
 
-1. **[libcurl integration](https://github.com/pgierz/fortran-s3-accessor/issues/9)** (#9) - Native performance and Windows support
+1. ✅ **[libcurl integration](https://github.com/pgierz/fortran-s3-accessor/issues/9)** (#9) - Native performance and Windows support
    - Direct C API via `iso_c_binding`
    - Cross-platform streaming (including Windows!)
    - Better error diagnostics
-   - ~50% performance improvement over v1.1.0
 
-2. **[AWS Signature v4 authentication](https://github.com/pgierz/fortran-s3-accessor/issues/10)** (#10) - Production-grade security
+2. ✅ **[AWS Signature v4 authentication](https://github.com/pgierz/fortran-s3-accessor/issues/10)** (#10) - Production-grade security
    - Full AWS authentication protocol
    - Private bucket access
-   - Temporary credentials (STS) support
    - All AWS regions
+   - MinIO/LocalStack support
 
-3. **[Progress callbacks](https://github.com/pgierz/fortran-s3-accessor/issues/11)** (#11) - Real-time transfer monitoring
+3. ✅ **[Progress callbacks](https://github.com/pgierz/fortran-s3-accessor/issues/11)** (#11) - Real-time transfer monitoring
    - Download/upload progress reporting
-   - Speed metrics and ETA
-   - Cancellation support
-   - Easy callback interface
+   - Easy callback interface (Linux only)
+
+**Planned Enhancements:**
 
 4. **[Multipart upload](https://github.com/pgierz/fortran-s3-accessor/issues/12)** (#12) - Large file support
    - Upload files >5GB (up to 5TB!)
@@ -190,9 +247,8 @@ Major enhancements planned:
 ## Current Limitations
 
 - **URL encoding**: Special characters in S3 keys are untested - use alphanumeric keys and underscores only
-- **Authentication**: Simplified credential checking (production AWS Signature v4 implementation planned for v1.2.0)
-- **Windows streaming**: Temporary file fallback on Windows (native streaming planned for v1.2.0)
-- **Error messages**: Limited error diagnostics from curl (improved error handling planned)
+- **Windows streaming**: Temporary file fallback on Windows (native streaming via libcurl available on Linux/macOS)
+- **Progress callbacks**: Only available on Linux (requires direct libcurl binding)
 
 ## Use Cases
 

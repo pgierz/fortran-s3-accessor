@@ -440,6 +440,32 @@ contains
 
     end function s3_get_object_libcurl
 
+    !> Get platform-appropriate temporary directory.
+    !>
+    !> Checks environment variables to find the system temp directory.
+    !> Tries TMPDIR, TEMP, TMP in order, falling back to /tmp on Unix.
+    !>
+    !> @param[out] tmpdir The temporary directory path
+    subroutine get_temp_dir(tmpdir)
+        character(len=*), intent(out) :: tmpdir
+        integer :: status
+
+        ! Try TMPDIR (Unix/Linux standard)
+        call get_environment_variable('TMPDIR', tmpdir, status=status)
+        if (status == 0 .and. len_trim(tmpdir) > 0) return
+
+        ! Try TEMP (Windows standard)
+        call get_environment_variable('TEMP', tmpdir, status=status)
+        if (status == 0 .and. len_trim(tmpdir) > 0) return
+
+        ! Try TMP (Windows alternative)
+        call get_environment_variable('TMP', tmpdir, status=status)
+        if (status == 0 .and. len_trim(tmpdir) > 0) return
+
+        ! Fallback to /tmp (Unix default)
+        tmpdir = '/tmp'
+    end subroutine get_temp_dir
+
     !> Fallback implementation using temporary files.
     !>
     !> Used on platforms without popen support (Windows) or if streaming fails.
@@ -453,8 +479,8 @@ contains
         logical :: success
         character(len=2048) :: url
         character(len=4096) :: cmd
-        character(len=256) :: tmpfile
-        integer :: unit, ios, filesize
+        character(len=512) :: tmpfile, tmpdir
+        integer :: unit, ios, filesize, cleanup_unit
         character(len=1) :: byte
         integer :: i
 
@@ -489,8 +515,9 @@ contains
             end if
         end if
 
-        ! Create temp file name
-        write(tmpfile, '(A,I0,A)') '/tmp/s3_get_', getpid(), '.tmp'
+        ! Get platform-appropriate temp directory
+        call get_temp_dir(tmpdir)
+        write(tmpfile, '(A,A,I0,A)') trim(tmpdir), '/s3_get_', getpid(), '.tmp'
 
         ! Build curl command
         write(cmd, '(A,A,A,A,A)') 'curl -s -o ', trim(tmpfile), ' "', trim(url), '"'
@@ -520,9 +547,9 @@ contains
 
         close(unit)
 
-        ! Clean up temp file
-        write(cmd, '(A,A)') 'rm -f ', trim(tmpfile)
-        call execute_command_line(cmd)
+        ! Clean up temp file using Fortran's cross-platform delete
+        open(newunit=cleanup_unit, file=tmpfile, iostat=ios)
+        if (ios == 0) close(cleanup_unit, status='delete')
 
         success = (ios == 0 .and. index(content, '<Error>') == 0)
     end function s3_get_object_fallback
@@ -559,8 +586,8 @@ contains
         logical :: success
         character(len=2048) :: url
         character(len=4096) :: cmd
-        character(len=256) :: tmpfile
-        integer :: unit, ios
+        character(len=512) :: tmpfile, tmpdir
+        integer :: unit, ios, cleanup_unit
 
         success = .false.
         if (.not. initialized) return
@@ -601,8 +628,9 @@ contains
             end if
         end if
 
-        ! Create temp file with content
-        write(tmpfile, '(A,I0,A)') '/tmp/s3_put_', getpid(), '.tmp'
+        ! Get platform-appropriate temp directory
+        call get_temp_dir(tmpdir)
+        write(tmpfile, '(A,A,I0,A)') trim(tmpdir), '/s3_put_', getpid(), '.tmp'
 
         open(newunit=unit, file=tmpfile, status='replace', iostat=ios)
         if (ios /= 0) return
@@ -617,9 +645,9 @@ contains
         ! Execute curl
         call execute_command_line(cmd, exitstat=ios)
 
-        ! Clean up temp file
-        write(cmd, '(A,A)') 'rm -f ', trim(tmpfile)
-        call execute_command_line(cmd)
+        ! Clean up temp file using Fortran's cross-platform delete
+        open(newunit=cleanup_unit, file=tmpfile, iostat=ios)
+        if (ios == 0) close(cleanup_unit, status='delete')
 
         success = (ios == 0)
     end function s3_put_object

@@ -272,7 +272,7 @@ contains
         config = s3_get_config()
 
         ! Build URL with partNumber and uploadId query parameters
-        if (config%path_style_url) then
+        if (config%use_path_style) then
             if (config%use_https) then
                 write(url, '(A,A,A,A,A,A,A,I0,A,A)') 'https://', trim(config%endpoint), '/', &
                     trim(upload%bucket), '/', trim(upload%key), '?partNumber=', part_number, &
@@ -351,7 +351,7 @@ contains
         ! Extract ETag from headers
         etag = extract_etag(headers_content)
         if (len(etag) == 0) then
-            call s3_set_error(S3_ERROR_PARSE, 0, &
+            call s3_set_error(S3_ERROR_CLIENT, 0, &
                 "Failed to extract ETag from response", &
                 "Upload may have succeeded but response was unexpected")
             success = .false.
@@ -450,7 +450,7 @@ contains
         config = s3_get_config()
 
         ! Build URL with partNumber and uploadId query parameters
-        if (config%path_style_url) then
+        if (config%use_path_style) then
             if (config%use_https) then
                 write(url, '(A,A,A,A,A,A,A,I0,A,A)') 'https://', trim(config%endpoint), '/', &
                     trim(upload%bucket), '/', trim(upload%key), '?partNumber=', part_number, &
@@ -526,7 +526,7 @@ contains
         ! Extract ETag from headers
         etag = extract_etag(headers_content)
         if (len(etag) == 0) then
-            call s3_set_error(S3_ERROR_PARSE, 0, &
+            call s3_set_error(S3_ERROR_CLIENT, 0, &
                 "Failed to extract ETag from response", &
                 "Upload may have succeeded but response was unexpected")
             success = .false.

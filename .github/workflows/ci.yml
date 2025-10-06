@@ -228,21 +228,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    services:
-      minio:
-        image: minio/minio:latest
-        ports:
-          - 9000:9000
-          - 9001:9001
-        env:
-          MINIO_ROOT_USER: minioadmin
-          MINIO_ROOT_PASSWORD: minioadmin
-        options: >-
-          --health-cmd "curl -f http://localhost:9000/minio/health/live || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -257,6 +242,32 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libcurl4-openssl-dev libssl-dev curl
+
+      - name: Start MinIO container
+        run: |
+          docker run -d \
+            --name minio \
+            -p 9000:9000 \
+            -p 9001:9001 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:latest server /data \
+            --console-address ":9001"
+
+      - name: Wait for MinIO to be healthy
+        run: |
+          echo "Waiting for MinIO to start..."
+          for i in {1..30}; do
+            if curl -f http://localhost:9000/minio/health/live 2>/dev/null; then
+              echo "MinIO is ready!"
+              exit 0
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+          echo "MinIO failed to start"
+          docker logs minio
+          exit 1
 
       - name: Setup FPM
         uses: fortran-lang/setup-fpm@v7

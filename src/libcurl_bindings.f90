@@ -60,6 +60,7 @@ module libcurl_bindings
     type :: curl_buffer_t
         character(len=:), allocatable :: data
         integer :: size = 0
+        integer :: http_status = 0  !< HTTP status code from response
     end type curl_buffer_t
 
     !> Progress callback interface
@@ -478,9 +479,15 @@ contains
 
         res = curl_easy_perform(handle)
 
+        ! Extract HTTP status code (always, even on error)
+        if (.not. curl_get_http_status(handle, buffer%http_status)) then
+            buffer%http_status = 0
+        end if
+
         if (res == CURLE_OK) then
             success = .true.
-            write(msg, '(A,I0,A)') 'GET request successful, received ', buffer%size, ' bytes'
+            write(msg, '(A,I0,A,I0,A)') 'GET request successful (HTTP ', buffer%http_status, &
+                                         '), received ', buffer%size, ' bytes'
             call s3_log_debug(trim(msg))
         else
             ! Extract error message
@@ -591,9 +598,15 @@ contains
 
         res = curl_easy_perform(handle)
 
+        ! Extract HTTP status code (always, even on error)
+        if (.not. curl_get_http_status(handle, buffer%http_status)) then
+            buffer%http_status = 0
+        end if
+
         if (res == CURLE_OK) then
             success = .true.
-            write(msg, '(A,I0,A)') 'GET request successful, received ', buffer%size, ' bytes'
+            write(msg, '(A,I0,A,I0,A)') 'GET request successful (HTTP ', buffer%http_status, &
+                                         '), received ', buffer%size, ' bytes'
             call s3_log_debug(trim(msg))
         else
             ! Extract error message
@@ -830,6 +843,11 @@ contains
         ! Perform request
         res = curl_easy_perform(handle)
 
+        ! Extract HTTP status code (always, even on error)
+        if (.not. curl_get_http_status(handle, buffer%http_status)) then
+            buffer%http_status = 0
+        end if
+
         ! Cleanup header list
         if (c_associated(header_list)) then
             call curl_slist_free_all(header_list)
@@ -837,7 +855,7 @@ contains
 
         if (res == CURLE_OK) then
             success = .true.
-            write(msg, '(A,I0,A)') 'Received ', buffer%size, ' bytes'
+            write(msg, '(A,I0,A,I0,A)') 'Received ', buffer%size, ' bytes (HTTP ', buffer%http_status, ')'
             call s3_log_debug(trim(msg))
         else
             write(msg, '(A,A)') 'curl error: ', trim(get_curl_error_string(res))

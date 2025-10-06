@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Error>
+  <Code>SignatureDoesNotMatch</Code>
+  <Message>The request signature we calculated does not match the signature you provided. Check your key and signing method.</Message>
+  <AWSAccessKeyId>AKIAIOSFODNN7EXAMPLE</AWSAccessKeyId>
+  <StringToSign>AWS4-HMAC-SHA256...</StringToSign>
+  <SignatureProvided>bad-signature</SignatureProvided>
+  <StringToSignBytes>41 57 53 34 2d 48 4d 41 43 2d 53 48 41 32 35 36</StringToSignBytes>
+  <RequestId>4442587FB7D0A2F9</RequestId>
+  <HostId>JuKZqmXuiwFeDQxhD7bEn4eU+yGzyFsZf4UykUJPMAQ</HostId>
+</Error>

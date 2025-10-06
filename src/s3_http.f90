@@ -87,6 +87,11 @@ module s3_http
     public :: s3_delete_uri
     ! Progress callback interface (re-exported from libcurl_bindings)
     public :: curl_progress_callback
+    ! Error handling (re-exported from s3_errors)
+    public :: s3_error_t
+    public :: s3_get_last_error
+    public :: s3_clear_error
+    public :: s3_has_error
 
 contains
 
@@ -173,6 +178,9 @@ contains
         ! Initialize logger from environment
         call s3_init_logger()
 
+        ! Clear any previous errors
+        call s3_clear_error()
+
         current_config = config
         initialized = .true.
 
@@ -248,8 +256,13 @@ contains
         character(len=2048) :: msg
 
         success = .false.
+
+        ! Clear previous error
+        call s3_clear_error()
+
         if (.not. initialized) then
-            call s3_log_error('s3_get_object called before s3_init()')
+            call s3_set_error(S3_ERROR_INIT, 0, "s3_get_object called before s3_init()", &
+                             "Call s3_init() with configuration before using S3 operations")
             return
         end if
 
@@ -435,11 +448,58 @@ contains
 
         if (success .and. allocated(buffer%data)) then
             content = buffer%data
+
+            ! Check for S3 errors even on successful HTTP status
+            if (buffer%http_status >= 400 .or. index(content, '<Error>') > 0) then
+                ! Create detailed error from response
+                call s3_set_error_from_response(buffer%http_status, content, "GET", "s3://" // &
+                                                trim(current_config%bucket) // "/" // trim(uri))
+                success = .false.
+            end if
         else
+            ! Network or curl error
+            if (buffer%http_status > 0) then
+                ! HTTP error with response body
+                if (allocated(buffer%data)) then
+                    call s3_set_error_from_response(buffer%http_status, buffer%data, "GET", &
+                                                    "s3://" // trim(current_config%bucket))
+                else
+                    call s3_set_error_from_response(buffer%http_status, "", "GET", &
+                                                    "s3://" // trim(current_config%bucket))
+                end if
+            else
+                ! Network error (no HTTP response)
+                call s3_set_error(S3_ERROR_NETWORK, 0, "Failed to connect to S3", &
+                                 "Check network connectivity and endpoint URL")
+            end if
             success = .false.
         end if
 
     end function s3_get_object_libcurl
+
+    !> Set error from HTTP response (helper function).
+    !>
+    !> Parses HTTP response and creates detailed error object.
+    !>
+    !> @param[in] http_status HTTP status code
+    !> @param[in] response_body Response body (may contain XML error)
+    !> @param[in] operation Operation name (GET, PUT, etc.)
+    !> @param[in] resource Resource path
+    subroutine s3_set_error_from_response(http_status, response_body, operation, resource)
+        integer, intent(in) :: http_status
+        character(len=*), intent(in) :: response_body
+        character(len=*), intent(in) :: operation
+        character(len=*), intent(in) :: resource
+
+        type(s3_error_t) :: error
+
+        ! Create comprehensive error
+        error = s3_create_error_from_response(http_status, response_body, operation, resource)
+
+        ! Set as last error
+        call s3_set_error(error%code, error%http_status, error%message, &
+                         error%suggestion, error%aws_error_code, error%operation, error%resource)
+    end subroutine s3_set_error_from_response
 
     !> Fallback implementation using temporary files.
     !>
@@ -564,12 +624,21 @@ contains
         integer :: unit, ios
 
         success = .false.
-        if (.not. initialized) return
+
+        ! Clear previous error
+        call s3_clear_error()
+
+        if (.not. initialized) then
+            call s3_set_error(S3_ERROR_INIT, 0, "s3_put_object called before s3_init()", &
+                             "Call s3_init() with configuration before using S3 operations")
+            return
+        end if
 
         ! For public buckets without auth, PUT won't work
         ! This is a simplified version - real implementation needs AWS signature
         if (len_trim(current_config%access_key) == 0) then
-            print *, 'Warning: PUT requires AWS credentials'
+            call s3_set_error(S3_ERROR_AUTH, 0, "PUT requires AWS credentials", &
+                             "Configure access_key and secret_key in s3_config for write operations")
             return
         end if
 
@@ -655,7 +724,15 @@ contains
         integer :: ios
 
         exists = .false.
-        if (.not. initialized) return
+
+        ! Clear previous error
+        call s3_clear_error()
+
+        if (.not. initialized) then
+            call s3_set_error(S3_ERROR_INIT, 0, "s3_object_exists called before s3_init()", &
+                             "Call s3_init() with configuration before using S3 operations")
+            return
+        end if
 
         ! Build URL - support both virtual-host and path-style
         if (current_config%use_path_style) then
@@ -725,11 +802,20 @@ contains
         integer :: ios
 
         success = .false.
-        if (.not. initialized) return
+
+        ! Clear previous error
+        call s3_clear_error()
+
+        if (.not. initialized) then
+            call s3_set_error(S3_ERROR_INIT, 0, "s3_delete_object called before s3_init()", &
+                             "Call s3_init() with configuration before using S3 operations")
+            return
+        end if
 
         ! For public buckets without auth, DELETE won't work
         if (len_trim(current_config%access_key) == 0) then
-            print *, 'Warning: DELETE requires AWS credentials'
+            call s3_set_error(S3_ERROR_AUTH, 0, "DELETE requires AWS credentials", &
+                             "Configure access_key and secret_key in s3_config for delete operations")
             return
         end if
 

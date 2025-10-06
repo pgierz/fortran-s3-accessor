@@ -363,6 +363,181 @@ The library automatically detects platform capabilities. No configuration requir
 - **URL encoding**: Special characters in S3 keys are untested - use alphanumeric keys and underscores only
 - **Progress callbacks**: Only available on Linux (requires direct libcurl binding)
 
+## Troubleshooting
+
+### Error Handling
+
+The library provides detailed error diagnostics with actionable suggestions. When an S3 operation fails, you can retrieve error details:
+
+```fortran
+use s3_http
+type(s3_error_t) :: error
+logical :: success
+
+success = s3_get_object('my-key.txt', content)
+if (.not. success) then
+    error = s3_get_last_error()
+    print *, 'Error:', trim(error%message)
+    if (allocated(error%suggestion)) then
+        print *, 'Suggestion:', trim(error%suggestion)
+    end if
+    if (allocated(error%aws_error_code)) then
+        print *, 'AWS Error Code:', trim(error%aws_error_code)
+    end if
+end if
+```
+
+### Common Errors
+
+#### 403 Forbidden - Access Denied
+
+**Error Message:** `Access Denied` or `SignatureDoesNotMatch`
+
+**Common Causes:**
+- Invalid AWS credentials (access key or secret key)
+- Insufficient IAM permissions
+- Clock skew (system time >15 minutes off)
+- Trailing whitespace in secret key
+
+**Solutions:**
+- Verify `access_key` and `secret_key` are correct
+- Check IAM policy allows `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` on resource
+- Synchronize system clock: `sudo ntpdate -s time.nist.gov` (Linux)
+- Ensure no whitespace in credentials: `trim(secret_key)`
+- Test with AWS CLI to verify credentials work
+
+#### 404 Not Found
+
+**Error Message:** `Not Found - Bucket or object does not exist`
+
+**AWS Error Code:** `NoSuchBucket` or `NoSuchKey`
+
+**Common Causes:**
+- Typo in bucket name or object key
+- Bucket in different region than configured
+- Object doesn't exist yet
+
+**Solutions:**
+- Verify bucket name: `aws s3 ls` (AWS CLI)
+- Check region matches: `config%region = 'us-east-1'`
+- Verify object exists: `aws s3 ls s3://bucket/key`
+- Check for case-sensitivity in bucket/key names
+
+#### 401 Unauthorized
+
+**Error Message:** `Unauthorized - Missing or invalid credentials`
+
+**Common Causes:**
+- No credentials configured
+- Environment variables not set
+
+**Solutions:**
+- Configure credentials in s3_config:
+  ```fortran
+  config%access_key = 'AKIAIOSFODNN7EXAMPLE'
+  config%secret_key = 'wJalrXUtnFEMI/...'
+  ```
+- Or set environment variables:
+  ```bash
+  export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+  export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/...
+  ```
+
+#### Network Errors
+
+**Error Message:** `Failed to connect to S3`
+
+**Common Causes:**
+- No internet connection
+- Firewall blocking HTTPS
+- Wrong endpoint URL
+- DNS resolution failure
+
+**Solutions:**
+- Test connectivity: `curl -I https://s3.amazonaws.com`
+- Check firewall allows port 443 (HTTPS)
+- Verify endpoint: `config%endpoint = 's3.amazonaws.com'`
+- For MinIO/localhost: Use `config%use_path_style = .true.`
+
+#### OpenSSL Not Available
+
+**Error Message:** `Credentials provided but OpenSSL not available`
+
+**Common Causes:**
+- OpenSSL libraries not installed
+- Library not in system path
+
+**Solutions:**
+- Install OpenSSL development libraries:
+  ```bash
+  # Ubuntu/Debian
+  sudo apt-get install libssl-dev libcrypto-dev
+
+  # RHEL/CentOS
+  sudo yum install openssl-devel
+  ```
+- Verify installation: `ldconfig -p | grep libssl`
+
+### Debug Logging
+
+Enable detailed logging to diagnose issues:
+
+```fortran
+! Set log level before s3_init()
+call s3_set_log_level(S3_LOG_LEVEL_DEBUG)  ! or TRACE for very detailed output
+```
+
+Or via environment variable:
+```bash
+export S3_LOG_LEVEL=DEBUG
+./my_program
+```
+
+Log levels:
+- `NONE` (0): No logging
+- `ERROR` (1): Errors only (default)
+- `WARN` (2): Warnings and errors
+- `INFO` (3): Informational messages
+- `DEBUG` (4): Detailed debugging
+- `TRACE` (5): Very detailed (includes curl commands, HTTP headers)
+
+### Testing Credentials
+
+Test your AWS credentials with a simple program:
+
+```fortran
+program test_credentials
+    use s3_http
+    type(s3_config) :: config
+    logical :: exists
+
+    ! Configure
+    config%bucket = 'my-bucket'
+    config%region = 'us-east-1'
+    config%access_key = 'AKIA...'
+    config%secret_key = '...'
+    call s3_init(config)
+
+    ! Test with known object
+    exists = s3_object_exists('known-file.txt')
+
+    if (exists) then
+        print *, 'Credentials work!'
+    else
+        print *, 'Authentication failed - check credentials'
+    end if
+end program
+```
+
+### Getting Help
+
+If you encounter issues not covered here:
+
+1. Enable `DEBUG` or `TRACE` logging
+2. Check error details with `s3_get_last_error()`
+3. Test with AWS CLI to isolate library vs. AWS issues
+4. Report issues at: https://github.com/pgierz/fortran-s3-accessor/issues
+
 ## Use Cases
 
 ### Primary Use Case: FESOM Climate Model

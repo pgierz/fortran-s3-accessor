@@ -225,14 +225,31 @@ contains
         character(len=*), intent(in) :: data
         logical :: success
 
-        integer :: data_len
-        character(len=:), allocatable :: test_etag
+        type(s3_config) :: config
+        character(len=2048) :: url, cmd
+        character(len=:), allocatable :: tmpfile_data, tmpfile_headers
+        character(len=:), allocatable :: etag
+        character(len=10000) :: headers_content
+        integer :: data_len, ios, unit
 
         success = .false.
         call s3_clear_error()
 
-        ! Silence unused argument warning for stub
-        if (.not. allocated(upload%key)) return
+        ! Check S3 is initialized
+        if (.not. s3_is_initialized()) then
+            call s3_set_error(S3_ERROR_INIT, 0, &
+                "S3 not initialized", &
+                "Call s3_init() before uploading multipart data")
+            return
+        end if
+
+        ! Validate upload state
+        if (.not. allocated(upload%upload_id) .or. .not. allocated(upload%key)) then
+            call s3_set_error(S3_ERROR_CLIENT, 0, &
+                "Invalid multipart upload state", &
+                "Call s3_multipart_init() first")
+            return
+        end if
 
         ! Validate part number
         if (part_number < 1 .or. part_number > MAX_PARTS_ALLOWED) then
@@ -251,19 +268,117 @@ contains
         call s3_log_debug("s3_multipart_upload_part: Uploading part " // &
             trim(adjustl(int_to_str(part_number))))
 
-        ! TODO: Send PUT request with ?partNumber=X&uploadId=Y
-        ! TODO: Extract ETag from response headers using extract_etag()
-        ! TODO: Store ETag in upload%etags(part_number)
+        ! Get config
+        config = s3_get_config()
 
-        ! Placeholder: extract_etag will be used when HTTP response is available
-        test_etag = extract_etag("")
-        if (len(test_etag) > 0) return  ! Avoid unused variable warning
+        ! Build URL with partNumber and uploadId query parameters
+        if (config%path_style_url) then
+            if (config%use_https) then
+                write(url, '(A,A,A,A,A,A,A,I0,A,A)') 'https://', trim(config%endpoint), '/', &
+                    trim(upload%bucket), '/', trim(upload%key), '?partNumber=', part_number, &
+                    '&uploadId=', trim(upload%upload_id)
+            else
+                write(url, '(A,A,A,A,A,A,A,I0,A,A)') 'http://', trim(config%endpoint), '/', &
+                    trim(upload%bucket), '/', trim(upload%key), '?partNumber=', part_number, &
+                    '&uploadId=', trim(upload%upload_id)
+            end if
+        else
+            if (config%use_https) then
+                write(url, '(A,A,A,A,A,A,A,I0,A,A)') 'https://', trim(upload%bucket), '.', &
+                    trim(config%endpoint), '/', trim(upload%key), '?partNumber=', part_number, &
+                    '&uploadId=', trim(upload%upload_id)
+            else
+                write(url, '(A,A,A,A,A,A,A,I0,A,A)') 'http://', trim(upload%bucket), '.', &
+                    trim(config%endpoint), '/', trim(upload%key), '?partNumber=', part_number, &
+                    '&uploadId=', trim(upload%upload_id)
+            end if
+        end if
 
-        call s3_set_error(S3_ERROR_CLIENT, 0, &
-            "Multipart part upload not yet implemented", &
-            "Use s3_multipart_upload_part_from_file() for now (also not implemented)")
+        ! Write data to temp file
+        tmpfile_data = generate_temp_filename('s3_part_data_', '.bin')
+        open(newunit=unit, file=tmpfile_data, status='replace', action='write', &
+             access='stream', iostat=ios)
+        if (ios /= 0) then
+            call s3_set_error(S3_ERROR_CLIENT, 0, &
+                "Failed to create temporary data file", &
+                "Check /tmp directory permissions and disk space")
+            return
+        end if
+        write(unit, iostat=ios) data
+        close(unit)
 
-        success = .false.
+        if (ios /= 0) then
+            call s3_set_error(S3_ERROR_CLIENT, 0, &
+                "Failed to write part data to temp file", &
+                "Check disk space availability")
+            return
+        end if
+
+        ! Create temp file for headers
+        tmpfile_headers = generate_temp_filename('s3_part_headers_', '.txt')
+
+        ! Execute curl PUT request and capture headers
+        write(cmd, '(A,A,A,A,A,A,A)') 'curl -s -X PUT "', trim(url), &
+            '" -T ', trim(tmpfile_data), ' -D ', trim(tmpfile_headers)
+        call execute_command_line(cmd, exitstat=ios)
+
+        ! Clean up data file
+        open(newunit=unit, file=tmpfile_data, status='old', iostat=ios)
+        if (ios == 0) close(unit, status='delete')
+
+        if (ios /= 0) then
+            call s3_set_error(S3_ERROR_NETWORK, 0, &
+                "Failed to upload part", &
+                "Check network connectivity and S3 credentials")
+            success = .false.
+            return
+        end if
+
+        ! Read response headers
+        open(newunit=unit, file=tmpfile_headers, status='old', action='read', iostat=ios)
+        if (ios /= 0) then
+            call s3_set_error(S3_ERROR_CLIENT, 0, &
+                "Failed to read response headers", &
+                "Upload may have succeeded but ETag extraction failed")
+            success = .false.
+            return
+        end if
+
+        headers_content = ''
+        read(unit, '(A)', iostat=ios) headers_content
+        close(unit, status='delete')
+
+        ! Extract ETag from headers
+        etag = extract_etag(headers_content)
+        if (len(etag) == 0) then
+            call s3_set_error(S3_ERROR_PARSE, 0, &
+                "Failed to extract ETag from response", &
+                "Upload may have succeeded but response was unexpected")
+            success = .false.
+            return
+        end if
+
+        ! Store ETag (ensure etags array is allocated)
+        if (.not. allocated(upload%etags)) then
+            allocate(character(len=100) :: upload%etags(MAX_PARTS_ALLOWED))
+        end if
+        upload%etags(part_number) = etag
+
+        ! Store part size
+        if (.not. allocated(upload%part_sizes)) then
+            allocate(upload%part_sizes(MAX_PARTS_ALLOWED))
+        end if
+        upload%part_sizes(part_number) = data_len
+
+        ! Update part count
+        if (part_number > upload%num_parts) then
+            upload%num_parts = part_number
+        end if
+
+        call s3_log_info("Part " // trim(adjustl(int_to_str(part_number))) // &
+            " uploaded successfully, ETag: " // trim(etag))
+
+        success = .true.
     end function s3_multipart_upload_part
 
     !> Upload a single part from a file segment.
@@ -288,21 +403,157 @@ contains
         integer, intent(in) :: length
         logical :: success
 
+        type(s3_config) :: config
+        character(len=2048) :: url, cmd
+        character(len=:), allocatable :: tmpfile_part, tmpfile_headers
+        character(len=:), allocatable :: etag
+        character(len=10000) :: headers_content
+        integer :: ios, unit
+        integer(kind=8) :: skip_blocks
+
         success = .false.
         call s3_clear_error()
 
-        ! Silence unused argument warnings for stub implementation
-        if (part_number < 0 .or. len(file_path) < 0 .or. offset < 0 .or. length < 0) return
+        ! Check S3 is initialized
+        if (.not. s3_is_initialized()) then
+            call s3_set_error(S3_ERROR_INIT, 0, &
+                "S3 not initialized", &
+                "Call s3_init() before uploading multipart data")
+            return
+        end if
+
+        ! Validate upload state
+        if (.not. allocated(upload%upload_id) .or. .not. allocated(upload%key)) then
+            call s3_set_error(S3_ERROR_CLIENT, 0, &
+                "Invalid multipart upload state", &
+                "Call s3_multipart_init() first")
+            return
+        end if
+
+        ! Validate part number
+        if (part_number < 1 .or. part_number > MAX_PARTS_ALLOWED) then
+            call s3_set_error(S3_ERROR_CLIENT, 0, &
+                "Invalid part number (must be 1-10000)", &
+                "S3 allows maximum 10,000 parts per multipart upload")
+            return
+        end if
+
+        ! Check part size (minimum 5MB, except last part)
+        if (length < MIN_PART_SIZE) then
+            call s3_log_warn("Part smaller than 5MB - this should only be the last part")
+        end if
 
         call s3_log_debug("s3_multipart_upload_part_from_file: Part " // &
-            trim(adjustl(int_to_str(upload%num_parts + 1))) // " from file")
+            trim(adjustl(int_to_str(part_number))) // " from file")
 
-        ! TODO: Open file, seek to offset, read length bytes, upload
-        call s3_set_error(S3_ERROR_CLIENT, 0, &
-            "Multipart upload not yet fully implemented", &
-            "This is a work-in-progress feature for v1.2.0")
+        ! Get config
+        config = s3_get_config()
 
-        success = .false.
+        ! Build URL with partNumber and uploadId query parameters
+        if (config%path_style_url) then
+            if (config%use_https) then
+                write(url, '(A,A,A,A,A,A,A,I0,A,A)') 'https://', trim(config%endpoint), '/', &
+                    trim(upload%bucket), '/', trim(upload%key), '?partNumber=', part_number, &
+                    '&uploadId=', trim(upload%upload_id)
+            else
+                write(url, '(A,A,A,A,A,A,A,I0,A,A)') 'http://', trim(config%endpoint), '/', &
+                    trim(upload%bucket), '/', trim(upload%key), '?partNumber=', part_number, &
+                    '&uploadId=', trim(upload%upload_id)
+            end if
+        else
+            if (config%use_https) then
+                write(url, '(A,A,A,A,A,A,A,I0,A,A)') 'https://', trim(upload%bucket), '.', &
+                    trim(config%endpoint), '/', trim(upload%key), '?partNumber=', part_number, &
+                    '&uploadId=', trim(upload%upload_id)
+            else
+                write(url, '(A,A,A,A,A,A,A,I0,A,A)') 'http://', trim(upload%bucket), '.', &
+                    trim(config%endpoint), '/', trim(upload%key), '?partNumber=', part_number, &
+                    '&uploadId=', trim(upload%upload_id)
+            end if
+        end if
+
+        ! Extract part from file using dd
+        tmpfile_part = generate_temp_filename('s3_file_part_', '.bin')
+        skip_blocks = offset
+
+        ! Use dd to extract the part (bs=1 for byte-level precision)
+        write(cmd, '(A,A,A,A,A,I0,A,I0,A)') &
+            'dd if="', trim(file_path), '" of="', trim(tmpfile_part), &
+            '" bs=1 skip=', skip_blocks, ' count=', length, ' 2>/dev/null'
+        call execute_command_line(cmd, exitstat=ios)
+
+        if (ios /= 0) then
+            call s3_set_error(S3_ERROR_CLIENT, 0, &
+                "Failed to extract part from file", &
+                "Check file path and ensure file is readable")
+            return
+        end if
+
+        ! Create temp file for headers
+        tmpfile_headers = generate_temp_filename('s3_filepart_headers_', '.txt')
+
+        ! Execute curl PUT request and capture headers
+        write(cmd, '(A,A,A,A,A,A,A)') 'curl -s -X PUT "', trim(url), &
+            '" -T "', trim(tmpfile_part), '" -D "', trim(tmpfile_headers), '"'
+        call execute_command_line(cmd, exitstat=ios)
+
+        ! Clean up part file
+        open(newunit=unit, file=tmpfile_part, status='old', iostat=ios)
+        if (ios == 0) close(unit, status='delete')
+
+        if (ios /= 0) then
+            call s3_set_error(S3_ERROR_NETWORK, 0, &
+                "Failed to upload part", &
+                "Check network connectivity and S3 credentials")
+            success = .false.
+            return
+        end if
+
+        ! Read response headers
+        open(newunit=unit, file=tmpfile_headers, status='old', action='read', iostat=ios)
+        if (ios /= 0) then
+            call s3_set_error(S3_ERROR_CLIENT, 0, &
+                "Failed to read response headers", &
+                "Upload may have succeeded but ETag extraction failed")
+            success = .false.
+            return
+        end if
+
+        headers_content = ''
+        read(unit, '(A)', iostat=ios) headers_content
+        close(unit, status='delete')
+
+        ! Extract ETag from headers
+        etag = extract_etag(headers_content)
+        if (len(etag) == 0) then
+            call s3_set_error(S3_ERROR_PARSE, 0, &
+                "Failed to extract ETag from response", &
+                "Upload may have succeeded but response was unexpected")
+            success = .false.
+            return
+        end if
+
+        ! Store ETag (ensure etags array is allocated)
+        if (.not. allocated(upload%etags)) then
+            allocate(character(len=100) :: upload%etags(MAX_PARTS_ALLOWED))
+        end if
+        upload%etags(part_number) = etag
+
+        ! Store part size
+        if (.not. allocated(upload%part_sizes)) then
+            allocate(upload%part_sizes(MAX_PARTS_ALLOWED))
+        end if
+        upload%part_sizes(part_number) = length
+
+        ! Update part count
+        if (part_number > upload%num_parts) then
+            upload%num_parts = part_number
+        end if
+
+        call s3_log_info("Part " // trim(adjustl(int_to_str(part_number))) // &
+            " uploaded from file, ETag: " // trim(etag))
+
+        success = .true.
     end function s3_multipart_upload_part_from_file
 
     !> Complete a multipart upload.

@@ -167,6 +167,7 @@ contains
     subroutine s3_init(config)
         type(s3_config), intent(in) :: config
         character(len=256) :: msg
+        logical :: has_access_key, has_secret_key
 
         ! Initialize logger from environment
         call s3_init_logger()
@@ -185,6 +186,27 @@ contains
         call s3_log_debug(trim(msg))
         write(msg, '(A,L1)') 'Streaming available: ', is_streaming_available()
         call s3_log_info(trim(msg))
+
+        ! Validate authentication configuration
+        has_access_key = len_trim(config%access_key) > 0
+        has_secret_key = len_trim(config%secret_key) > 0
+
+        if (has_access_key .and. .not. has_secret_key) then
+            call s3_log_warning("Access key provided but secret key is missing - authentication disabled")
+        else if (has_secret_key .and. .not. has_access_key) then
+            call s3_log_warning("Secret key provided but access key is missing - authentication disabled")
+        else if (has_access_key .and. has_secret_key) then
+            if (is_openssl_available()) then
+                call s3_log_info("AWS Signature v4 authentication enabled")
+                if (len_trim(config%access_key) < 16) then
+                    call s3_log_warning("Access key seems too short - AWS keys are typically 20 characters")
+                end if
+            else
+                call s3_log_warning("Credentials provided but OpenSSL not available - authentication disabled")
+            end if
+        else
+            call s3_log_debug("No credentials provided - using unauthenticated requests")
+        end if
     end subroutine s3_init
 
     !> Download an object from S3 and return its content.
@@ -356,7 +378,16 @@ contains
                    len_trim(current_config%secret_key) > 0 .and. &
                    is_openssl_available()
 
+        ! Warn if credentials provided but OpenSSL unavailable
+        if (len_trim(current_config%access_key) > 0 .and. &
+            len_trim(current_config%secret_key) > 0 .and. &
+            .not. is_openssl_available()) then
+            call s3_log_warning("AWS credentials provided but OpenSSL not available - " // &
+                               "continuing with unauthenticated request")
+        end if
+
         if (use_auth) then
+            call s3_log_debug("AWS Signature v4 authentication enabled")
             ! Generate timestamp (ISO8601 format: YYYYMMDDTHHMMSSZ)
             call get_iso8601_timestamp(timestamp)
 
@@ -379,7 +410,7 @@ contains
             ! Generate authorization header
             if (.not. aws_sign_request(creds, "GET", host, uri, "", payload_hash, &
                                       timestamp, auth_header)) then
-                call s3_log_error("Failed to generate AWS signature")
+                call s3_log_error("Failed to generate AWS signature - check credentials and region")
                 success = .false.
                 return
             end if
@@ -389,7 +420,8 @@ contains
             headers_array(2) = "X-Amz-Date: " // trim(timestamp)
             headers_array(3) = "Authorization: " // trim(auth_header)
 
-            call s3_log_debug("Using AWS Signature v4 authentication")
+            call s3_log_debug("Signing request with access key: " // creds%access_key(1:min(12, len(creds%access_key))) // "...")
+            call s3_log_debug("Region: " // trim(creds%region))
             success = curl_get_to_buffer_with_headers(url, buffer, headers_array)
         else
             ! No authentication

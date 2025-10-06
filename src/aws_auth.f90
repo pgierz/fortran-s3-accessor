@@ -54,6 +54,31 @@ contains
         character(len=:), allocatable :: signature
         character(len=8) :: date_only
 
+        ! Validate input parameters
+        if (.not. allocated(credentials%access_key) .or. len_trim(credentials%access_key) == 0) then
+            call s3_log_error("aws_sign_request: access_key is empty")
+            success = .false.
+            return
+        end if
+
+        if (.not. allocated(credentials%secret_key) .or. len_trim(credentials%secret_key) == 0) then
+            call s3_log_error("aws_sign_request: secret_key is empty")
+            success = .false.
+            return
+        end if
+
+        if (.not. allocated(credentials%region) .or. len_trim(credentials%region) == 0) then
+            call s3_log_error("aws_sign_request: region is empty")
+            success = .false.
+            return
+        end if
+
+        if (len_trim(timestamp) < 16) then
+            call s3_log_error("aws_sign_request: timestamp format invalid (must be YYYYMMDDTHHMMSSZ)")
+            success = .false.
+            return
+        end if
+
         ! Extract date from timestamp (first 8 chars: YYYYMMDD)
         date_only = timestamp(1:8)
         date_stamp = trim(date_only)

@@ -7,25 +7,25 @@ A simple Fortran library for S3-compatible object storage access using direct HT
 | Platform | S3 Operations | Progress Callbacks | Performance | Status |
 |----------|---------------|-------------------|-------------|---------|
 | **Linux** | ✅ Full support | ✅ Yes | Excellent (libcurl direct) | Production ready |
-| **macOS** | ✅ Full support | ❌ No | Good (subprocess fallback) | Works, not recommended for production |
-| **Windows** | ✅ Full support | ❌ No | Acceptable (temp file fallback) | Works, not recommended for production |
+| **macOS** | ✅ Core operations | ❌ No | Good (subprocess fallback) | Development only |
+| **Windows** | ❌ Not supported | ❌ No | N/A | Not tested |
 
-**Recommended**: Linux for production deployments. macOS/Windows supported for development and testing.
+**Production deployments**: Linux only (ubuntu-latest or HPC clusters)
 
-The library uses an intelligent fallback strategy:
-1. **libcurl direct** (Linux): Zero-copy streaming, full feature support
-2. **popen() streaming** (macOS): Subprocess overhead, core operations work
-3. **Temp files** (Windows): Disk I/O overhead, core operations work
+**Development on macOS**: Works with automatic fallback to popen() subprocess streaming (no progress callbacks)
+
+**Windows**: Not supported or tested. CI only runs on Linux.
 
 ## Features
 
 - **AWS Signature v4 Authentication**: Full production-grade authentication for private buckets
 - **Simple HTTP-based S3 operations**: GET, PUT, DELETE, and HEAD requests
-- **Progress callbacks** (Linux only): Real-time download monitoring for large files
-- **Automatic platform fallbacks**: Core operations work on all platforms
-- **Comprehensive testing**: 22+ test cases with mock-based testing framework
+- **Progress callbacks**: Real-time download monitoring for large files (Linux only)
+- **libcurl direct integration**: Zero-copy streaming with excellent performance (Linux)
+- **macOS fallback**: popen() subprocess streaming for development (macOS only)
+- **Comprehensive testing**: 27 unit tests + 8 integration tests with MinIO in CI
 - **S3-compatible services**: Works with AWS S3, MinIO, LocalStack, and other S3-compatible storage
-- **Production ready**: Designed for scientific computing workflows like FESOM
+- **Production ready**: Designed for Linux HPC environments and scientific computing workflows
 
 ## Authentication
 
@@ -305,34 +305,20 @@ Integration tests run against **real S3 services** (not mocks) to validate end-t
 
 ## Performance Notice
 
-### Current Implementation (v1.1.0)
+### Current Implementation (v1.1.0+)
 
-The library uses direct memory streaming via POSIX `popen()` on Linux/macOS/Unix systems:
+**Linux (Production):**
+- Direct libcurl integration via C bindings
+- Zero-copy streaming to memory
+- Full feature support including progress callbacks
+- Excellent performance
 
-```
-Network → Memory (POSIX systems)
-Network → /tmp → Memory (Windows fallback)
-```
+**macOS (Development):**
+- Automatic fallback to popen() subprocess streaming
+- Good performance for development and testing
+- No progress callbacks (libcurl ABI incompatibility)
 
-**Performance Characteristics:**
-
-| Platform | Method | Overhead | Notes |
-|----------|--------|----------|-------|
-| Linux/macOS/Unix | Direct streaming | Minimal (~10ms) | Uses popen() C binding |
-| Windows | Temp file fallback | ~10-30% | Falls back to v1.0.0 method |
-
-### Platform Support
-
-**Full Performance (Direct Streaming):**
-- Linux (all HPC clusters)
-- macOS
-- Unix-like systems with POSIX compliance
-
-**Fallback Mode (Temporary Files):**
-- Windows systems
-- Non-POSIX platforms
-
-The library automatically detects platform capabilities and uses the fastest method available. No configuration required.
+The library automatically detects platform capabilities. No configuration required.
 
 ### Roadmap: v1.2.0 - Christmas Release 🎄
 
@@ -340,9 +326,9 @@ The library automatically detects platform capabilities and uses the fastest met
 
 **Recently Completed:**
 
-1. ✅ **[libcurl integration](https://github.com/pgierz/fortran-s3-accessor/issues/9)** (#9) - Native performance and Windows support
+1. ✅ **[libcurl integration](https://github.com/pgierz/fortran-s3-accessor/issues/9)** (#9) - Native performance for Linux
    - Direct C API via `iso_c_binding`
-   - Cross-platform streaming (including Windows!)
+   - Zero-copy streaming on Linux
    - Better error diagnostics
 
 2. ✅ **[AWS Signature v4 authentication](https://github.com/pgierz/fortran-s3-accessor/issues/10)** (#10) - Production-grade security
@@ -373,8 +359,8 @@ The library automatically detects platform capabilities and uses the fastest met
 
 ## Current Limitations
 
+- **Platform support**: Linux only for production. macOS works for development (no progress callbacks)
 - **URL encoding**: Special characters in S3 keys are untested - use alphanumeric keys and underscores only
-- **Windows streaming**: Temporary file fallback on Windows (native streaming via libcurl available on Linux/macOS)
 - **Progress callbacks**: Only available on Linux (requires direct libcurl binding)
 
 ## Use Cases

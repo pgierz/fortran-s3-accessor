@@ -170,6 +170,7 @@ jobs:
                    src/aws_auth.f90 \
                    src/libcurl_bindings.f90 \
                    src/s3_http.f90 \
+                   src/s3_multipart.f90 \
                    src/s3_io.f90 \
                    -lssl -lcrypto
 

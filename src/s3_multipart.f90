@@ -101,8 +101,23 @@ contains
         type(multipart_upload_t), intent(out) :: upload
         logical :: success
 
+        type(s3_config) :: config
+        character(len=2048) :: url, cmd, tmpfile
+        character(len=:), allocatable :: response
+        integer :: unit, ios
+
         success = .false.
         call s3_clear_error()
+
+        ! Check if S3 is initialized
+        if (.not. s3_is_initialized()) then
+            call s3_set_error(S3_ERROR_INIT, 0, &
+                "s3_multipart_init called before s3_init()", &
+                "Call s3_init() with configuration before using multipart operations")
+            return
+        end if
+
+        config = s3_get_config()
 
         call s3_log_info("s3_multipart_init: Initiating multipart upload for key: " // trim(key))
 
@@ -112,18 +127,76 @@ contains
         upload%etags = ''
         upload%part_sizes = 0
 
-        ! Store key for later operations
+        ! Store key and bucket for later operations
         upload%key = trim(key)
+        upload%bucket = trim(config%bucket)
         upload%num_parts = 0
 
-        ! TODO: Send POST request to S3 with ?uploads
-        ! TODO: Parse XML response to extract UploadId
-        ! For now, return false as not implemented
-        call s3_set_error(S3_ERROR_CLIENT, 0, &
-            "Multipart upload not yet fully implemented", &
-            "This is a work-in-progress feature for v1.2.0")
+        ! Build URL with ?uploads query parameter
+        if (config%use_path_style) then
+            if (config%use_https) then
+                write(url, '(A,A,A,A,A,A)') 'https://', trim(config%endpoint), '/', &
+                    trim(config%bucket), '/', trim(key), '?uploads'
+            else
+                write(url, '(A,A,A,A,A,A)') 'http://', trim(config%endpoint), '/', &
+                    trim(config%bucket), '/', trim(key), '?uploads'
+            end if
+        else
+            if (config%use_https) then
+                write(url, '(A,A,A,A,A,A)') 'https://', trim(config%bucket), '.', &
+                    trim(config%endpoint), '/', trim(key), '?uploads'
+            else
+                write(url, '(A,A,A,A,A,A)') 'http://', trim(config%bucket), '.', &
+                    trim(config%endpoint), '/', trim(key), '?uploads'
+            end if
+        end if
 
-        success = .false.
+        ! Create temp file for response
+        write(tmpfile, '(A,I0,A)') '/tmp/s3_multipart_init_', getpid(), '.xml'
+
+        ! Execute curl POST request (simplified - needs AWS v4 signature in production)
+        write(cmd, '(A,A,A,A,A)') 'curl -s -X POST "', trim(url), '" -o ', trim(tmpfile)
+        call execute_command_line(cmd, exitstat=ios)
+
+        if (ios /= 0) then
+            call s3_set_error(S3_ERROR_NETWORK, 0, &
+                "Failed to initiate multipart upload", &
+                "Check network connectivity and S3 endpoint configuration")
+            return
+        end if
+
+        ! Read response
+        open(newunit=unit, file=tmpfile, status='old', action='read', iostat=ios)
+        if (ios /= 0) then
+            call s3_set_error(S3_ERROR_CLIENT, 0, &
+                "Failed to read multipart init response", &
+                "Internal error reading temporary file")
+            return
+        end if
+
+        block
+            character(len=10000) :: temp_response
+            read(unit, '(A)', iostat=ios) temp_response
+            if (ios == 0) response = trim(temp_response)
+        end block
+        close(unit)
+
+        ! Clean up temp file
+        write(cmd, '(A,A)') 'rm -f ', trim(tmpfile)
+        call execute_command_line(cmd)
+
+        ! Extract UploadId from XML response
+        upload%upload_id = extract_upload_id(response)
+
+        if (len_trim(upload%upload_id) == 0) then
+            call s3_set_error(S3_ERROR_CLIENT, 0, &
+                "Failed to parse UploadId from response", &
+                "S3 response may be malformed or operation may have failed")
+            success = .false.
+        else
+            call s3_log_debug("Multipart upload initiated with UploadId: " // trim(upload%upload_id))
+            success = .true.
+        end if
     end function s3_multipart_init
 
     !> Upload a single part from memory.

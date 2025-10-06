@@ -60,6 +60,7 @@ endif()
 # Continue with remaining sources
 list(APPEND LIB_SOURCES
   src/s3_http.f90
+  src/s3_multipart.f90
   src/s3_io.f90
 )
 
@@ -103,6 +104,7 @@ set(MOD_FILES
   ${CMAKE_CURRENT_BINARY_DIR}/s3_errors.mod
   ${CMAKE_CURRENT_BINARY_DIR}/curl_stream.mod
   ${CMAKE_CURRENT_BINARY_DIR}/s3_http.mod
+  ${CMAKE_CURRENT_BINARY_DIR}/s3_multipart.mod
   ${CMAKE_CURRENT_BINARY_DIR}/s3_io.mod
 )
 

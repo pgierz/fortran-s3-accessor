@@ -164,12 +164,125 @@ make -j
 
 ## Testing
 
-All tests use mock curl for reliable testing:
+The library includes comprehensive testing at multiple levels:
 
-```bash
-# Run tests with mock curl
-PATH="test/scripts:$PATH" fpm test
-```
+### Unit Tests (27 tests)
+
+**Run with:** `PATH="test/scripts:$PATH" fpm test`
+
+All unit tests use **mock curl responses** for fast, reliable testing without network dependencies.
+
+#### S3 HTTP Operations (`test/test_s3_http.f90`) - 21 tests
+
+**Core Operations:**
+- `config_init` - Validates S3 configuration initialization and default values
+- `get_object` - Tests successful object download from S3
+- `get_object_not_found` - Verifies proper handling of 404 Not Found errors
+- `object_exists_true` - Tests HEAD request for existing objects
+- `object_exists_false` - Tests HEAD request for non-existent objects
+- `get_object_content_validation` - Validates downloaded content integrity
+- `put_object_without_auth` - Tests upload to public buckets without authentication
+- `put_object_success` - Tests successful authenticated object upload
+- `delete_object_without_auth` - Tests deletion in public buckets
+- `delete_object_success` - Tests authenticated object deletion
+
+**Protocol & Configuration:**
+- `http_vs_https_protocols` - Verifies both HTTP and HTTPS protocol support
+- `different_endpoints` - Tests various S3 endpoints (AWS, MinIO, custom)
+- `path_style_config` - Validates path-style URL configuration
+- `path_style_url_get` - Tests GET operations with path-style URLs
+
+**Edge Cases & Error Handling:**
+- `empty_key_edge_case` - Tests behavior with empty object keys
+- `very_long_key_edge_case` - Tests handling of very long object keys
+- `network_failure_scenarios` - Simulates and validates network failure handling
+- `boundary_content_sizes` - Tests empty, small, and large content sizes
+- `get_object_malformed_response` - Tests resilience to malformed S3 responses
+- `auth_edge_cases` - Tests partial credentials and authentication edge cases
+
+**S3 URI Support:**
+- `s3_uri_parsing` - Validates parsing of `s3://bucket/key` URIs
+- `s3_uri_operations` - Tests GET, PUT, DELETE operations with s3:// URIs
+
+#### Uninitialized State Tests (`test/test_uninitialized_cases.f90`) - 4 tests
+
+**Safety & Error Handling:**
+- `get_object_uninitialized` - Ensures GET fails gracefully when library not initialized
+- `object_exists_uninitialized` - Ensures HEAD fails gracefully when library not initialized
+- `put_object_uninitialized` - Ensures PUT fails gracefully when library not initialized
+- `delete_object_uninitialized` - Ensures DELETE fails gracefully when library not initialized
+
+#### AWS Authentication Tests (`test/test_aws_auth.f90`) - 1 test
+
+**Authentication:**
+- `test_full_signature` - Validates complete AWS Signature v4 signing process with test vectors
+
+#### Framework Validation (`test/test_math.f90`) - 1 test
+
+- `basic_addition` - Sanity check to validate test-drive framework is working
+
+### Integration Tests (6 tests)
+
+Integration tests run against **real S3 services** (not mocks) to validate end-to-end functionality.
+
+#### ✅ Runs in CI (Every Build)
+
+**1. NetCDF Integration (`examples/netcdf_minimal.f90`)**
+   - Downloads real CMIP6 climate data (~8MB NetCDF) from ESGF public S3 bucket
+   - Writes to temp file (preferring `/dev/shm` RAM disk on Linux)
+   - Opens and validates with NetCDF-Fortran library
+   - Tests dimensions, variables, and attributes
+   - **CI Job:** `NetCDF Integration Example (optional)`
+
+**2. Authentication Demo (`app/auth_demo.f90`)**
+   - Public ESGF bucket access (unauthenticated)
+   - AWS Signature v4 header generation (example credentials)
+   - MinIO/LocalStack configuration examples
+   - **CI Job:** Runs via `fpm run --verbose`
+
+#### 📋 Manual Integration Tests
+
+**3. Simple S3 Operations (`app/test_simple.f90`)**
+   - `s3_object_exists()` - Check if AWI climate NetCDF file exists
+   - `s3_get_object()` - Download small test file from ESGF
+   - `s3_open()/s3_read_line()/s3_close()` - Fortran I/O interface
+
+**4. Streaming Performance (`app/test_streaming.f90`)**
+   - Detects platform capabilities (`is_streaming_available()`)
+   - Downloads real S3 data with debug logging
+   - Counts temp files to verify zero-copy streaming
+   - Compares streaming vs temp file fallback performance
+
+**5. Direct File Download (`app/file_download_demo.f90`)** - Linux only
+   - Tests libcurl direct-to-file streaming
+   - Downloads from `httpbin.org` test endpoint
+   - Verifies zero memory buffering (streams to disk)
+   - Skips gracefully on macOS (libcurl compatibility)
+
+**6. Progress Callbacks (`app/progress_demo.f90`)** - Linux only
+   - Real-time download progress tracking
+   - Progress bar, percentage, speed, ETA display
+   - Validates callback cancellation support
+   - Requires direct libcurl binding (Linux only)
+
+### Test Coverage Summary
+
+**Unit Tests (27):** ✅ Core S3 operations, authentication, protocols, edge cases, error handling
+**Integration Tests (6):** ✅ Real ESGF S3 data, NetCDF workflows, streaming, progress tracking
+**CI Coverage:** ✅ Runs on every commit with gcc 11, 12, 13 on Linux
+**Test Data:** ESGF CMIP6 climate data, httpbin.org test endpoints
+
+**Total Coverage:**
+- S3 operations (GET, PUT, DELETE, HEAD)
+- AWS Signature v4 authentication
+- HTTP/HTTPS protocols
+- Virtual-hosted and path-style URLs
+- S3 URI parsing (`s3://bucket/key`)
+- Network failures and malformed responses
+- Uninitialized state protection
+- NetCDF integration workflows
+- Zero-copy streaming validation
+- Progress callback functionality
 
 ## Documentation
 

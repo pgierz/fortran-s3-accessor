@@ -3,6 +3,7 @@ program test_basic
     use testdrive, only : run_testsuite
     use test_math, only : collect_math
     use test_s3_http, only : collect_s3_http
+    use test_byte_range, only : collect_byte_range_tests
     implicit none
 
     integer :: stat
@@ -11,6 +12,7 @@ program test_basic
 
     call run_testsuite(collect_math, error_unit, stat)
     call run_testsuite(collect_s3_http, error_unit, stat)
+    call run_testsuite(collect_byte_range_tests, error_unit, stat)
 
     if (stat > 0) then
         write(error_unit, '(i0, " test(s) failed!")') stat

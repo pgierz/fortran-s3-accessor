@@ -404,9 +404,16 @@ contains
         type(curl_buffer_t) :: buffer
         logical :: use_auth
         character(len=:), allocatable :: auth_header, timestamp, host, uri
-        character(len=3) :: headers_array(3)  ! Host, X-Amz-Date, Authorization
+        character(len=:), allocatable :: range_value  ! "bytes=start-end"
+        character(len=64) :: range_str  ! Buffer for building range string
+        character(len=512), dimension(:), allocatable :: headers_array  ! Dynamic headers
+        integer :: num_headers  ! Counter for header array
+        character(len=1024) :: msg  ! Buffer for log messages
         type(aws_credential_t) :: creds
         character(len=64) :: payload_hash  ! Empty SHA256
+
+        ! Allocate headers array (max 4 headers: Host, X-Amz-Date, Range, Authorization)
+        allocate(character(len=512) :: headers_array(4))
 
         ! Check if authentication is required and available
         use_auth = len_trim(current_config%access_key) > 0 .and. &

@@ -18,6 +18,7 @@ def parse_curl_args(args):
     is_put = False
     is_delete = False
     data_file = None
+    byte_range = None
 
     i = 0
     while i < len(args):
@@ -25,6 +26,9 @@ def parse_curl_args(args):
 
         if arg == "-o" and i + 1 < len(args):
             output_file = args[i + 1]
+            i += 2
+        elif arg == "-r" and i + 1 < len(args):
+            byte_range = args[i + 1]
             i += 2
         elif arg == "-I":
             is_head = True
@@ -53,7 +57,8 @@ def parse_curl_args(args):
         "is_head": is_head,
         "is_put": is_put,
         "is_delete": is_delete,
-        "data_file": data_file
+        "data_file": data_file,
+        "byte_range": byte_range
     }
 
 
@@ -120,8 +125,36 @@ def main():
         # Normal response file
         response_file = response_dir / key
         if response_file.exists():
-            shutil.copy(response_file, output_path)
-            sys.exit(0)
+            # Handle byte range if specified
+            if parsed["byte_range"]:
+                try:
+                    # Parse range (format: "start-end")
+                    parts = parsed["byte_range"].split("-")
+                    if len(parts) == 2:
+                        start = int(parts[0])
+                        end = int(parts[1])
+
+                        # Read full file
+                        full_content = response_file.read_bytes()
+
+                        # Extract range (end is inclusive in HTTP ranges)
+                        # Clamp to file size
+                        end = min(end, len(full_content) - 1)
+                        if start <= end and start < len(full_content):
+                            range_content = full_content[start:end+1]
+                            output_path.write_bytes(range_content)
+                        else:
+                            # Invalid range - return full file
+                            output_path.write_bytes(full_content)
+                        sys.exit(0)
+                except (ValueError, IndexError):
+                    # Invalid range format - return full file
+                    shutil.copy(response_file, output_path)
+                    sys.exit(0)
+            else:
+                # No range - copy full file
+                shutil.copy(response_file, output_path)
+                sys.exit(0)
         else:
             # Return NoSuchKey error
             nosuchkey = response_dir / "nosuchkey.xml"

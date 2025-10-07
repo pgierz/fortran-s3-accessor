@@ -32,10 +32,11 @@ contains
     !> @param query_string [in] URL query parameters (e.g., "prefix=test&delimiter=/"), empty string if none
     !> @param payload_hash [in] SHA256 hash of request payload (hex-encoded), use empty string hash for GET/DELETE
     !> @param timestamp [in] ISO8601 timestamp (e.g., "20230615T120000Z")
+    !> @param range_header [in] Optional Range header value (e.g., "bytes=0-1023")
     !> @param authorization_header [out] Generated Authorization header value
     !> @return success [logical] True if signing succeeded, false otherwise
     function aws_sign_request(credentials, http_method, host, uri, query_string, &
-                              payload_hash, timestamp, authorization_header) result(success)
+                              payload_hash, timestamp, authorization_header, range_header) result(success)
         type(aws_credential_t), intent(in) :: credentials
         character(len=*), intent(in) :: http_method
         character(len=*), intent(in) :: host
@@ -43,6 +44,7 @@ contains
         character(len=*), intent(in) :: query_string
         character(len=*), intent(in) :: payload_hash
         character(len=*), intent(in) :: timestamp
+        character(len=*), intent(in), optional :: range_header
         character(len=:), allocatable, intent(out) :: authorization_header
         logical :: success
 
@@ -89,9 +91,18 @@ contains
 
         ! Build canonical headers (must be sorted alphabetically and lowercase)
         ! For S3, we need at minimum: host and x-amz-date
-        canonical_headers = "host:" // trim(host) // new_line('a') // &
-                           "x-amz-date:" // trim(timestamp) // new_line('a')
-        signed_headers = "host;x-amz-date"
+        ! If range header present, include it (alphabetically: host, range, x-amz-date)
+        if (present(range_header)) then
+            call s3_log_debug("Including Range header in signature: " // trim(range_header))
+            canonical_headers = "host:" // trim(host) // new_line('a') // &
+                               "range:" // trim(range_header) // new_line('a') // &
+                               "x-amz-date:" // trim(timestamp) // new_line('a')
+            signed_headers = "host;range;x-amz-date"
+        else
+            canonical_headers = "host:" // trim(host) // new_line('a') // &
+                               "x-amz-date:" // trim(timestamp) // new_line('a')
+            signed_headers = "host;x-amz-date"
+        end if
 
         ! Step 1: Create canonical request
         canonical_request = build_canonical_request(http_method, uri, query_string, &

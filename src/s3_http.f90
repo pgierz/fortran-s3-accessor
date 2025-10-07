@@ -38,6 +38,7 @@ module s3_http
     use s3_errors
     use libcurl_bindings, only: is_libcurl_available, curl_get_to_buffer, &
                                 curl_get_to_buffer_with_progress, curl_get_to_buffer_with_headers, &
+                                curl_get_to_buffer_with_range, &
                                 curl_buffer_t, curl_progress_callback, curl_get_http_status
     use aws_auth, only: aws_sign_request, aws_credential_t
     use openssl_bindings, only: sha256_hash, hex_encode, is_openssl_available
@@ -77,6 +78,7 @@ module s3_http
     ! Public procedures
     public :: s3_init
     public :: s3_get_object
+    public :: s3_get_object_range
     public :: s3_put_object
     public :: s3_object_exists
     public :: s3_delete_object
@@ -248,10 +250,11 @@ contains
     !>     print *, 'Download failed'
     !> end if
     !> ```
-    function s3_get_object(key, content, progress_callback) result(success)
+    function s3_get_object(key, content, progress_callback, byte_start, byte_end) result(success)
         character(len=*), intent(in) :: key
         character(len=:), allocatable, intent(out) :: content
         procedure(curl_progress_callback), optional :: progress_callback
+        integer(kind=8), intent(in), optional :: byte_start, byte_end
         logical :: success
         character(len=2048) :: url
         character(len=4096) :: cmd
@@ -276,6 +279,12 @@ contains
             write(msg, '(A,A,A)') 'Getting object: ', key(1:2020), '...'
         end if
         call s3_log_info(trim(msg))
+
+        ! Log byte range if specified
+        if (present(byte_start) .and. present(byte_end)) then
+            write(msg, '(A,I0,A,I0)') 'Requesting bytes ', byte_start, '-', byte_end
+            call s3_log_info(trim(msg))
+        end if
 
         ! Build URL - support both virtual-host and path-style
         if (current_config%use_path_style) then
@@ -312,7 +321,7 @@ contains
         ! Try libcurl first (fastest, cross-platform)
         if (is_libcurl_available()) then
             call s3_log_debug('Attempting native libcurl')
-            success = s3_get_object_libcurl(trim(url), content, progress_callback)
+            success = s3_get_object_libcurl(trim(url), content, progress_callback, byte_start, byte_end)
             if (success) then
                 write(msg, '(A,I0,A)') 'libcurl successful, received ', len(content), ' bytes'
                 call s3_log_debug(trim(msg))
@@ -333,7 +342,13 @@ contains
         end if
 
         ! Build curl command for subprocess methods
-        write(cmd, '(A,A,A)') 'curl -s "', trim(url), '"'
+        if (present(byte_start) .and. present(byte_end)) then
+            ! Include byte range in curl command
+            write(cmd, '(A,I0,A,I0,A,A,A)') 'curl -s -r ', byte_start, '-', byte_end, ' "', trim(url), '"'
+        else
+            ! No byte range
+            write(cmd, '(A,A,A)') 'curl -s "', trim(url), '"'
+        end if
         write(msg, '(A,A)') 'Command: ', trim(cmd)
         call s3_log_trace(trim(msg))
 
@@ -366,7 +381,7 @@ contains
 
         ! Fallback to temp file method (last resort)
         call s3_log_debug('Falling back to temp file method')
-        success = s3_get_object_fallback(key, content)
+        success = s3_get_object_fallback(key, content, byte_start, byte_end)
 
     end function s3_get_object
 
@@ -377,11 +392,14 @@ contains
     !> @param[in] url The complete URL to fetch
     !> @param[out] content The downloaded content
     !> @param[in] progress_callback Optional progress callback function
+    !> @param[in] byte_start Optional starting byte for range request
+    !> @param[in] byte_end Optional ending byte for range request
     !> @return .true. if successful, .false. otherwise
-    function s3_get_object_libcurl(url, content, progress_callback) result(success)
+    function s3_get_object_libcurl(url, content, progress_callback, byte_start, byte_end) result(success)
         character(len=*), intent(in) :: url
         character(len=:), allocatable, intent(out) :: content
         procedure(curl_progress_callback), optional :: progress_callback
+        integer(kind=8), intent(in), optional :: byte_start, byte_end
         logical :: success
         type(curl_buffer_t) :: buffer
         logical :: use_auth
@@ -401,6 +419,14 @@ contains
             .not. is_openssl_available()) then
             call s3_log_warn("AWS credentials provided but OpenSSL not available - " // &
                             "continuing with unauthenticated request")
+        end if
+
+        ! Build range string if byte range is requested
+        if (present(byte_start) .and. present(byte_end)) then
+            write(range_str, '(A,I0,A,I0)') 'bytes=', byte_start, '-', byte_end
+            allocate(character(len=len_trim(range_str)) :: range_value)
+            range_value = trim(range_str)
+            call s3_log_debug("Using byte-range request: " // trim(range_value))
         end if
 
         if (use_auth) then
@@ -424,25 +450,52 @@ contains
             creds%region = trim(current_config%region)
             creds%service = "s3"
 
-            ! Generate authorization header
-            if (.not. aws_sign_request(creds, "GET", host, uri, "", payload_hash, &
-                                      timestamp, auth_header)) then
-                call s3_log_error("Failed to generate AWS signature - check credentials and region")
-                success = .false.
-                return
+            ! Generate authorization header (with optional range header for signature)
+            if (allocated(range_value)) then
+                if (.not. aws_sign_request(creds, "GET", host, uri, "", payload_hash, &
+                                          timestamp, auth_header, range_value)) then
+                    call s3_log_error("Failed to generate AWS signature - check credentials and region")
+                    success = .false.
+                    return
+                end if
+            else
+                if (.not. aws_sign_request(creds, "GET", host, uri, "", payload_hash, &
+                                          timestamp, auth_header)) then
+                    call s3_log_error("Failed to generate AWS signature - check credentials and region")
+                    success = .false.
+                    return
+                end if
             end if
 
             ! Build HTTP headers
-            headers_array(1) = "Host: " // trim(host)
-            headers_array(2) = "X-Amz-Date: " // trim(timestamp)
-            headers_array(3) = "Authorization: " // trim(auth_header)
+            num_headers = 0
+
+            num_headers = num_headers + 1
+            headers_array(num_headers) = "Host: " // trim(host)
+
+            num_headers = num_headers + 1
+            headers_array(num_headers) = "X-Amz-Date: " // trim(timestamp)
+
+            ! Include Range header if present
+            if (allocated(range_value)) then
+                num_headers = num_headers + 1
+                headers_array(num_headers) = "Range: " // trim(range_value)
+                write(msg, '(A,A)') 'Adding Range header to request: ', trim(range_value)
+                call s3_log_debug(trim(msg))
+            end if
+
+            num_headers = num_headers + 1
+            headers_array(num_headers) = "Authorization: " // trim(auth_header)
 
             call s3_log_debug("Signing request with access key: " // creds%access_key(1:min(12, len(creds%access_key))) // "...")
             call s3_log_debug("Region: " // trim(creds%region))
-            success = curl_get_to_buffer_with_headers(url, buffer, headers_array)
+            success = curl_get_to_buffer_with_headers(url, buffer, headers_array(1:num_headers))
         else
-            ! No authentication
-            if (present(progress_callback)) then
+            ! No authentication - use dedicated range or regular request
+            if (allocated(range_value)) then
+                ! Use libcurl's built-in range support for unauthenticated requests
+                success = curl_get_to_buffer_with_range(url, buffer, byte_start, byte_end)
+            else if (present(progress_callback)) then
                 success = curl_get_to_buffer_with_progress(url, buffer, progress_callback)
             else
                 success = curl_get_to_buffer(url, buffer)
@@ -453,11 +506,28 @@ contains
             content = buffer%data
 
             ! Check for S3 errors even on successful HTTP status
-            if (buffer%http_status >= 400 .or. index(content, '<Error>') > 0) then
-                ! Create detailed error from response
-                call s3_set_error_from_response(buffer%http_status, content, "GET", "s3://" // &
-                                                trim(current_config%bucket) // "/" // trim(uri))
-                success = .false.
+            ! For range requests, HTTP 206 is expected
+            if (allocated(range_value)) then
+                if (buffer%http_status == 206) then
+                    write(msg, '(A,I0,A)') 'Range request successful (HTTP 206), received ', &
+                                          len(content), ' bytes'
+                    call s3_log_debug(trim(msg))
+                else if (buffer%http_status == 200) then
+                    write(msg, '(A,I0,A)') 'Range request returned HTTP 200 (server ignored range), received ', &
+                                          len(content), ' bytes'
+                    call s3_log_warn(trim(msg))
+                else if (buffer%http_status >= 400 .or. index(content, '<Error>') > 0) then
+                    call s3_set_error_from_response(buffer%http_status, content, "GET", "s3://" // &
+                                                    trim(current_config%bucket) // "/" // trim(uri))
+                    success = .false.
+                end if
+            else
+                if (buffer%http_status >= 400 .or. index(content, '<Error>') > 0) then
+                    ! Create detailed error from response
+                    call s3_set_error_from_response(buffer%http_status, content, "GET", "s3://" // &
+                                                    trim(current_config%bucket) // "/" // trim(uri))
+                    success = .false.
+                end if
             end if
         else
             ! Network or curl error
@@ -479,6 +549,56 @@ contains
         end if
 
     end function s3_get_object_libcurl
+
+    !> Download a specific byte range from an S3 object.
+    !>
+    !> This is a convenience wrapper around s3_get_object() specifically for byte-range requests.
+    !> Downloads only the specified byte range from an S3 object, which is useful for reading
+    !> specific portions of large files without downloading the entire file.
+    !>
+    !> @param[in] key The S3 object key (path within the bucket)
+    !> @param[out] content The downloaded content (only the requested byte range)
+    !> @param[in] byte_start Starting byte position (0-indexed, inclusive)
+    !> @param[in] byte_end Ending byte position (0-indexed, inclusive)
+    !> @return .true. if download succeeded, .false. on error
+    !>
+    !> @note Requires server support for HTTP Range requests (most S3 services support this)
+    !> @note Byte positions are 0-indexed (first byte is 0, not 1)
+    !> @note Both start and end positions are inclusive
+    !> @note Server may respond with HTTP 206 (Partial Content) for successful range requests
+    !> @note Server may respond with HTTP 200 (OK) and send full content if range not supported
+    !>
+    !> ## Examples
+    !>
+    !> ```fortran
+    !> character(len=:), allocatable :: content
+    !> logical :: success
+    !>
+    !> ! Download first 1KB of a file
+    !> success = s3_get_object_range('data/large_file.bin', content, 0_8, 1023_8)
+    !> if (success) then
+    !>     print *, 'Downloaded first 1KB: ', len(content), ' bytes'
+    !> end if
+    !>
+    !> ! Download bytes 1000-2000 from the middle of a file
+    !> success = s3_get_object_range('data/large_file.bin', content, 1000_8, 2000_8)
+    !> if (success) then
+    !>     print *, 'Downloaded 1001 bytes from middle of file'
+    !> end if
+    !>
+    !> ! Download last 500 bytes (if you know file size is 10000)
+    !> success = s3_get_object_range('data/file.dat', content, 9500_8, 9999_8)
+    !> ```
+    function s3_get_object_range(key, content, byte_start, byte_end) result(success)
+        character(len=*), intent(in) :: key
+        character(len=:), allocatable, intent(out) :: content
+        integer(kind=8), intent(in) :: byte_start, byte_end
+        logical :: success
+
+        ! Simply call s3_get_object with byte range parameters
+        success = s3_get_object(key, content, byte_start=byte_start, byte_end=byte_end)
+
+    end function s3_get_object_range
 
     !> Set error from HTTP response (helper function).
     !>
@@ -510,10 +630,13 @@ contains
     !>
     !> @param[in] key The S3 object key
     !> @param[out] content The downloaded content
+    !> @param[in] byte_start Optional starting byte for range request
+    !> @param[in] byte_end Optional ending byte for range request
     !> @return .true. if successful, .false. otherwise
-    function s3_get_object_fallback(key, content) result(success)
+    function s3_get_object_fallback(key, content, byte_start, byte_end) result(success)
         character(len=*), intent(in) :: key
         character(len=:), allocatable, intent(out) :: content
+        integer(kind=8), intent(in), optional :: byte_start, byte_end
         logical :: success
         character(len=2048) :: url
         character(len=4096) :: cmd
@@ -556,8 +679,15 @@ contains
         ! Create temp file name
         write(tmpfile, '(A,I0,A)') '/tmp/s3_get_', getpid(), '.tmp'
 
-        ! Build curl command
-        write(cmd, '(A,A,A,A,A)') 'curl -s -o ', trim(tmpfile), ' "', trim(url), '"'
+        ! Build curl command with optional byte range
+        if (present(byte_start) .and. present(byte_end)) then
+            ! Include byte range in curl command
+            write(cmd, '(A,I0,A,I0,A,A,A,A,A)') 'curl -s -r ', byte_start, '-', byte_end, &
+                ' -o ', trim(tmpfile), ' "', trim(url), '"'
+        else
+            ! No byte range
+            write(cmd, '(A,A,A,A,A)') 'curl -s -o ', trim(tmpfile), ' "', trim(url), '"'
+        end if
 
         ! Execute curl
         call execute_command_line(cmd, exitstat=ios)

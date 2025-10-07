@@ -18,6 +18,7 @@ module libcurl_bindings
     public :: curl_init
     public :: curl_cleanup
     public :: curl_get_to_buffer
+    public :: curl_get_to_buffer_with_range
     public :: curl_get_to_buffer_with_progress
     public :: curl_get_to_buffer_with_headers
     public :: curl_get_to_file
@@ -32,6 +33,7 @@ module libcurl_bindings
     public :: curl_setopt_int
     ! Constants
     public :: CURLOPT_URL
+    public :: CURLOPT_RANGE
     public :: CURLINFO_RESPONSE_CODE
     public :: CURLE_OK
 
@@ -49,6 +51,7 @@ module libcurl_bindings
     integer(c_int), parameter :: CURLOPT_XFERINFOFUNCTION = 20219
     integer(c_int), parameter :: CURLOPT_XFERINFODATA = 10057
     integer(c_int), parameter :: CURLOPT_HTTPHEADER = 10023
+    integer(c_int), parameter :: CURLOPT_RANGE = 10007
 
     !> libcurl info codes (for curl_easy_getinfo)
     integer(c_int), parameter :: CURLINFO_RESPONSE_CODE = 2097154
@@ -241,6 +244,26 @@ contains
         res = curl_easy_setopt_c(handle, option, c_loc(c_str))
 
     end function curl_setopt_string
+
+    !> Set curl option with string value (helper using internal buffer).
+    !>
+    !> This is a convenience function that wraps curl_setopt_string for
+    !> setting string-valued options like CURLOPT_RANGE.
+    !>
+    !> @param handle Curl handle
+    !> @param option Curl option code
+    !> @param value String value to set
+    !> @return CURLE_OK on success, error code otherwise
+    function curl_setopt_str(handle, option, value) result(res)
+        type(c_ptr), value :: handle
+        integer(c_int), value :: option
+        character(len=*), intent(in) :: value
+        integer(c_int) :: res
+
+        ! Use the existing curl_setopt_string which handles buffer management
+        res = curl_setopt_string(handle, option, value)
+
+    end function curl_setopt_str
 
     !> Check if libcurl is available on this system.
     !>
@@ -499,6 +522,158 @@ contains
         call curl_cleanup(handle)
 
     end function curl_get_to_buffer
+
+    !> Perform HTTP GET with byte-range request and store result in buffer.
+    !>
+    !> This function fetches a specific byte range from a URL using the HTTP Range header.
+    !> The server should respond with HTTP 206 (Partial Content) for successful range requests.
+    !>
+    !> @param url URL to fetch
+    !> @param buffer Buffer to store response
+    !> @param byte_start Starting byte position (0-indexed, inclusive)
+    !> @param byte_end Ending byte position (0-indexed, inclusive)
+    !> @return .true. if successful, .false. on error
+    !>
+    !> @note Requires server support for Range requests (HTTP 206 response)
+    !> @note Range is specified as "start-end" (both inclusive, 0-indexed)
+    !> @note HTTP 206 (Partial Content) indicates successful range request
+    !> @note HTTP 200 (OK) indicates server ignored range and sent full content
+    function curl_get_to_buffer_with_range(url, buffer, byte_start, byte_end) result(success)
+        use iso_fortran_env, only: int64
+        character(len=*), intent(in) :: url
+        type(curl_buffer_t), intent(out), target :: buffer
+        integer(int64), intent(in) :: byte_start, byte_end
+        logical :: success
+
+        type(c_ptr) :: handle
+        integer(c_int) :: res
+        character(len=1024) :: msg
+        character(len=512) :: url_truncated
+        character(len=64) :: range_str
+        procedure(write_callback), pointer :: callback_ptr
+        integer :: n
+
+        success = .false.
+
+        ! Initialize buffer
+        if (allocated(buffer%data)) deallocate(buffer%data)
+        buffer%size = 0
+        buffer%http_status = 0
+
+        ! Validate range
+        if (byte_start < 0 .or. byte_end < byte_start) then
+            write(msg, '(A,I0,A,I0)') 'Invalid byte range: ', byte_start, '-', byte_end
+            call s3_log_error(trim(msg))
+            return
+        end if
+
+        ! Build range string in format "start-end"
+        write(range_str, '(I0,A,I0)') byte_start, '-', byte_end
+        write(msg, '(A,A)') 'Requesting byte range: ', trim(range_str)
+        call s3_log_debug(trim(msg))
+
+        ! Initialize curl
+        if (.not. curl_init(handle)) return
+
+        ! Convert URL to C string with null terminator using module-level buffer
+        ! CRITICAL: Using module_url_buffer ensures memory persists for libcurl
+        n = len_trim(url)
+        if (n >= S3_URL_MAXLEN) then
+            write(msg, '(A,I0,A)') 'URL too long: ', n, ' chars (max 8192)'
+            call s3_log_error(trim(msg))
+            call curl_cleanup(handle)
+            return
+        end if
+        ! Use transfer() to convert to C string
+        module_url_buffer = transfer(trim(url) // C_NULL_CHAR, module_url_buffer)
+
+        ! Set URL using the ptr variant with c_loc() of module buffer
+        res = curl_setopt_ptr(handle, CURLOPT_URL, c_loc(module_url_buffer))
+
+        if (res /= CURLE_OK) then
+            call s3_log_error('Failed to set URL: ' // trim(url))
+            call curl_cleanup(handle)
+            return
+        end if
+
+        ! Set write callback
+        callback_ptr => write_callback
+        res = curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, c_funloc(callback_ptr))
+        if (res /= CURLE_OK) then
+            call s3_log_error('Failed to set write callback')
+            call curl_cleanup(handle)
+            return
+        end if
+
+        ! Set write data (our buffer)
+        res = curl_easy_setopt(handle, CURLOPT_WRITEDATA, c_loc(buffer))
+        if (res /= CURLE_OK) then
+            call s3_log_error('Failed to set write data')
+            call curl_cleanup(handle)
+            return
+        end if
+
+        ! Set byte range using the string helper function
+        res = curl_setopt_str(handle, CURLOPT_RANGE, trim(range_str))
+        if (res /= CURLE_OK) then
+            write(msg, '(A,A)') 'Failed to set byte range: ', trim(range_str)
+            call s3_log_error(trim(msg))
+            call curl_cleanup(handle)
+            return
+        end if
+
+        ! Set other options
+        res = curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1_c_int)
+        ! NOTE: Do NOT set CURLOPT_FAILONERROR here - HTTP 206 is success for range requests
+        ! Setting FAILONERROR would treat 206 as an error
+
+        ! Perform the request (truncate URL for logging if too long)
+        if (len_trim(url) > 500) then
+            url_truncated = url(1:497) // '...'
+        else
+            url_truncated = trim(url)
+        end if
+        write(msg, '(A,A,A,A)') 'Performing range GET request (', trim(range_str), ') to: ', &
+                                 trim(url_truncated)
+        call s3_log_debug(trim(msg))
+
+        res = curl_easy_perform(handle)
+
+        ! Extract HTTP status code (always, even on error)
+        if (.not. curl_get_http_status(handle, buffer%http_status)) then
+            buffer%http_status = 0
+        end if
+
+        if (res == CURLE_OK) then
+            ! Check HTTP status - both 200 (full content) and 206 (partial) are acceptable
+            if (buffer%http_status == 200) then
+                ! Server ignored range request and sent full content
+                write(msg, '(A,I0,A)') 'Range request returned HTTP 200 (full content), received ', &
+                                       buffer%size, ' bytes'
+                call s3_log_warn(trim(msg))
+                success = .true.
+            else if (buffer%http_status == 206) then
+                ! Successful partial content response
+                write(msg, '(A,I0,A)') 'Range request successful (HTTP 206), received ', &
+                                       buffer%size, ' bytes'
+                call s3_log_debug(trim(msg))
+                success = .true.
+            else
+                ! Unexpected status code
+                write(msg, '(A,I0,A,I0,A)') 'Unexpected HTTP status ', buffer%http_status, &
+                                            ' for range request, received ', buffer%size, ' bytes'
+                call s3_log_error(trim(msg))
+            end if
+        else
+            ! Extract error message
+            write(msg, '(A,A)') 'curl error: ', trim(get_curl_error_string(res))
+            call s3_log_error(trim(msg))
+        end if
+
+        ! Cleanup
+        call curl_cleanup(handle)
+
+    end function curl_get_to_buffer_with_range
 
     !> Perform HTTP GET with progress reporting.
     !>

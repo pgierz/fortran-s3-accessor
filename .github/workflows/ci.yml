@@ -38,7 +38,7 @@ jobs:
           version: ${{ matrix.gcc-version }}
 
       - name: Setup FPM
-        uses: fortran-lang/setup-fpm@v7
+        uses: fortran-lang/setup-fpm@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -271,7 +271,7 @@ jobs:
           exit 1
 
       - name: Setup FPM
-        uses: fortran-lang/setup-fpm@v7
+        uses: fortran-lang/setup-fpm@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
